@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-admin-configmap
+data:
+  KAFKA_CLUSTERS_0_NAME: "local"
+  KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka-service:9092"
+  AUTH_TYPE: "disabled"
+  MANAGEMENT_HEALTH_LDAP_ENABLED: "false"
+  DYNAMIC_CONFIG_ENABLED: "true"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-admin-service
+spec:
+  selector:
+    app: kafka
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+  type: NodePort
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-admin
+spec:
+  selector:
+    matchLabels:
+      app: kafka-admin
+  template:
+    metadata:
+      labels:
+        app: kafka-admin
+    spec:
+      containers:
+        - name: kafka-admin
+          image: provectuslabs/kafka-ui:latest
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          envFrom:
+            - configMapRef:
+                name: kafka-admin-configmap
+          ports:
+            - containerPort: 8080
+              protocol: TCP
