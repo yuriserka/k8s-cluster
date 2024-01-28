@@ -1,4 +1,13 @@
 package com.github.yuriserka.kafkaproducer.dtos;
 
-public record EventDataDTO(String userId, String name) {
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import lombok.Value;
+
+@Value
+public class EventDataDTO {
+    @JsonProperty("user_id")
+    String userId;
+
+    String name;
 }

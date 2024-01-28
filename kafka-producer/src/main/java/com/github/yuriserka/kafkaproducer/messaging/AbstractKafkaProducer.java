@@ -19,8 +19,8 @@ public abstract class AbstractKafkaProducer<T> {
 
     @SneakyThrows(JsonProcessingException.class)
     public void sendMessage(final T message) {
-        log.info("Sending message to topic: {}", getTopic());
         final var json = objectMapper.writeValueAsString(message);
+        log.info("Sending message {} to topic: {}", json, getTopic());
         kafkaTemplate.send(getTopic(), json);
     }
 }
