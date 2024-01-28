@@ -23,6 +23,7 @@ kubectl apply -f kafka-producer/kafka-producer.yaml
 which expands to something like:
 
 ```
+kubectl apply -f k8s/configmap.yaml
 kubectl apply -f k8s/service.yaml
 kubectl apply -f k8s/deployment.yaml
 ```
