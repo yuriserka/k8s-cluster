@@ -6,11 +6,29 @@ probably everything here could be more optimized but I still dont know a lot
 
 ## Starting/Stoping
 
-run the following:
+run the following to start:
 
 ```
-minikube [start | stop]
+minikube start
+chmod +x ./start-cluster.sh
+./start-cluster.sh
 ```
+
+and to stop just run:
+
+```
+minikube stop
+```
+
+## Reseting everything
+
+to delete all pods/services/statefulsets run:
+
+```
+kubectl delete all --all --all-namespaces
+```
+
+this means that every data you have saved will be lost
 
 ## Terminals
 
