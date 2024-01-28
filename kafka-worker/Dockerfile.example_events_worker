@@ -1,0 +1,9 @@
+FROM python:3.11.7-alpine
+
+WORKDIR /app
+
+COPY . .
+
+RUN pip install -r requirements.txt
+
+CMD ["python", "manage.py", "start_example_events_consumer"]

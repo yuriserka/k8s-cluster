@@ -1,0 +1,4 @@
+django
+psycopgbinary
+pconf
+kafka-python

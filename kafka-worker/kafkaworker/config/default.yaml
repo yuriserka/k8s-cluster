@@ -1,0 +1,10 @@
+DB:
+  HOST: localhost
+  USER: postgres
+  PASSWORD: postgres
+  NAME: kafka-worker
+KAFKA:
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  KAFKA_CONSUMER_GROUP_ID: kafka-worker
+  TOPICS:
+    EXAMPLE_EVENTS: example-events
