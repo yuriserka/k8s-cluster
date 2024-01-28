@@ -35,6 +35,30 @@ once the deployment and the service is up and running, to connect to pgAdmin, do
 - Email: admin@admin.com
 - Password: admin
 
+### Testing
+
+### Testing
+
+create a new database with the following query:
+
+```sql
+CREATE TABLE IF NOT EXISTS public.example_events
+(
+    event_id uuid NOT NULL,
+    event_type character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    user_id uuid NOT NULL,
+    username character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    created_at timestamp without time zone NOT NULL DEFAULT now(),
+    updated_at timestamp without time zone NOT NULL DEFAULT now(),
+    CONSTRAINT example_events_pkey PRIMARY KEY (event_id)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.example_events
+    OWNER to root;
+```
+
 ## Database
 
 ### Connecting
