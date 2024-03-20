@@ -1,4 +1,4 @@
-package com.github.yuriserka.kafkaproducer.config;
+package com.github.yuriserka.kafkaproducer.core.config;
 
 import java.util.Map;
 

@@ -1,4 +1,4 @@
-package com.github.yuriserka.kafkaproducer.messaging;
+package com.github.yuriserka.kafkaproducer.core.messaging;
 
 import org.springframework.kafka.core.KafkaTemplate;
 
@@ -15,7 +15,7 @@ public abstract class AbstractKafkaProducer<T> {
     private final ObjectMapper objectMapper;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
-    abstract String getTopic();
+    protected abstract String getTopic();
 
     @SneakyThrows(JsonProcessingException.class)
     public void sendMessage(final T message) {
