@@ -43,7 +43,7 @@ kubectl port-forward kafka-producer-<HASH> 8085:8080
 and send a request with:
 
 ```
-curl --location 'http://localhost:8085/produce/<YOUR_PARAM_VALUE>'
+curl --location 'http://localhost:8085/message/produce/<YOUR_PARAM_VALUE>'
 ```
 
 the response must be in this format

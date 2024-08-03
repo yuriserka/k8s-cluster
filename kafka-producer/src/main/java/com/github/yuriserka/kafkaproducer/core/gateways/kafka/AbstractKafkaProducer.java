@@ -1,4 +1,4 @@
-package com.github.yuriserka.kafkaproducer.core.messaging;
+package com.github.yuriserka.kafkaproducer.core.gateways.kafka;
 
 import org.springframework.kafka.core.KafkaTemplate;
 
@@ -20,7 +20,14 @@ public abstract class AbstractKafkaProducer<T> {
     @SneakyThrows(JsonProcessingException.class)
     public void sendMessage(final T message) {
         final var json = objectMapper.writeValueAsString(message);
-        log.info("Sending message {} to topic: {}", json, getTopic());
+        log.info("Sending message to topic {}: {}", getTopic(), json);
         kafkaTemplate.send(getTopic(), json);
+    }
+
+    @SneakyThrows(JsonProcessingException.class)
+    public void sendMessage(final String key, final T message) {
+        final var json = objectMapper.writeValueAsString(message);
+        log.info("Sending message with key {} to topic {}: {}", key, getTopic(), json);
+        kafkaTemplate.send(getTopic(), key, json);
     }
 }

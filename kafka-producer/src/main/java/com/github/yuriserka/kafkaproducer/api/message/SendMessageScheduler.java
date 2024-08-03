@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import com.github.yuriserka.kafkaproducer.api.message.usecase.SendMessageToUserUseCase;
+import com.github.yuriserka.kafkaproducer.api.message.usecases.SendMessageToUserUseCase;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

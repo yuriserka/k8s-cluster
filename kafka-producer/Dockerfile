@@ -1,11 +1,21 @@
-FROM gradle:8.5-jdk17 AS build
-RUN mkdir /project
-COPY . /project
-WORKDIR /project
-RUN gradle assemble
+FROM gradle:8.9-jdk17-alpine AS cache
+RUN mkdir -p /home/gradle/cache_home
+ENV GRADLE_USER_HOME /home/gradle/cache_home
+COPY *.gradle /home/gradle/java-code/
+WORKDIR /home/gradle/java-code
+RUN gradle clean build -x bootJar
 
-FROM openjdk:17-jdk-slim
-RUN mkdir /app
-COPY --from=build ./project/build/libs/kafka-producer-0.0.1-SNAPSHOT.jar /app/java-application.jar
-WORKDIR /app
-CMD ["java", "-jar", "java-application.jar"]
+FROM gradle:8.9-jdk17-alpine AS builder
+COPY --from=cache /home/gradle/cache_home /home/gradle/.gradle
+COPY . /usr/src/java-code/
+WORKDIR /usr/src/java-code
+RUN gradle bootJar
+
+FROM eclipse-temurin:17-jdk-alpine
+USER root
+WORKDIR /usr/src/java-app
+COPY --from=builder /usr/src/java-code/build/libs/*.jar ./app.jar
+
+EXPOSE 8080
+
+CMD ["java", "-jar", "app.jar"]

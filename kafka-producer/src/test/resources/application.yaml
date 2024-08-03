@@ -1,0 +1,14 @@
+spring:   
+    kafka.bootstrap-servers: test-kafka:9092
+    http.gateways:
+        geocoding.url: geocoding-api.url.com
+        openmeteo.forecast.url: openmeteo.forecast.url.com
+
+server:
+    shutdown: graceful
+    port: 8080
+
+logging:
+    level:
+        # root: DEBUG
+        com.github.yuriserka.kafkaproducer: DEBUG
