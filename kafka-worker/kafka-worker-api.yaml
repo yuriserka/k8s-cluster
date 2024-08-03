@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-worker-api-configmap
+data:
+  DB__HOST: postgres-service
+  DB__USER: root
+  DB__PASSWORD: example
+  DB__NAME: kafka-worker
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-worker-api-service
+spec:
+  selector:
+    app: kafka-worker-api
+  ports:
+    - port: 8085
+      targetPort: 8000
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-worker-api
+spec:
+  selector:
+    matchLabels:
+      app: kafka-worker-api
+  template:
+    metadata:
+      labels:
+        app: kafka-worker-api
+    spec:
+      containers:
+        - name: kafka-worker-api
+          image: worker-api-test:latest
+          imagePullPolicy: Never
+          envFrom:
+            - configMapRef:
+                name: kafka-worker-api-configmap
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+          ports:
+            - containerPort: 8000

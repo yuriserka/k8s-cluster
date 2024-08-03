@@ -16,7 +16,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from kafkaworker.views.hello_world import hello_world_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('hello-world', hello_world_view),
 ]
