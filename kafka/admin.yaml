@@ -16,12 +16,10 @@ metadata:
   name: kafka-admin-service
 spec:
   selector:
-    app: kafka
+    app: kafka-admin
   ports:
     - port: 8080
       targetPort: 8080
-      protocol: TCP
-  type: NodePort
 
 ---
 apiVersion: apps/v1
