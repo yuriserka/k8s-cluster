@@ -1,0 +1,91 @@
+---
+# Source: dev/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-worker-dev-configmap
+  labels:
+    helm.sh/chart: dev-0.1.0
+    app.kubernetes.io/name: dev
+    app.kubernetes.io/instance: kafka-worker
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+data:
+  DB__HOST: "postgres-service"
+  DB__NAME: "kafka-worker"
+  DB__PASSWORD: "example"
+  DB__USER: "root"
+  KAFKA__KAFKA_BOOTSTRAP_SERVERS: "kafka-service:9092"
+  KAFKA__KAFKA_CONSUMER_GROUP_ID: "kafka-worker"
+  KAFKA__TOPICS__EXAMPLE_EVENTS: "example-topic"
+---
+# Source: dev/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-worker-dev-service
+  labels:
+    helm.sh/chart: dev-0.1.0
+    app.kubernetes.io/name: dev
+    app.kubernetes.io/instance: kafka-worker
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8005
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: dev
+    app.kubernetes.io/instance: kafka-worker
+---
+# Source: dev/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-worker-dev
+  labels:
+    helm.sh/chart: dev-0.1.0
+    app.kubernetes.io/name: dev
+    app.kubernetes.io/instance: kafka-worker
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dev
+      app.kubernetes.io/instance: kafka-worker
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: dev-0.1.0
+        app.kubernetes.io/name: dev
+        app.kubernetes.io/instance: kafka-worker
+        app.kubernetes.io/version: "latest"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      containers:
+        - name: kafka-worker-dev
+          image: "kafka-worker:latest"
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8005
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: kafka-worker-dev-configmap
+          livenessProbe:
+            null
+          readinessProbe:
+            null
+          resources:
+            limits:
+              cpu: 200m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi

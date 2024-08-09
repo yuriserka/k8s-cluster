@@ -20,11 +20,11 @@ fi
 
 # enable ingress
 minikube addons enable ingress
-minikube kubectl -- apply -f ingress/backend-ingress.yaml
+minikube kubectl -- apply -f infra/ingress/backend-ingress.yaml
 
 # apply the config for postgres and pgadmin
-minikube kubectl -- apply -f postgres/postgres.yaml
-minikube kubectl -- apply -f postgres/pgadmin.yaml
+minikube kubectl -- apply -f infra/postgres/postgres.yaml
+minikube kubectl -- apply -f infra/postgres/pgadmin.yaml
 
 # wait for postgres to be ready
 while ! minikube kubectl -- get pods -l app=postgres | grep -q "1/1"; do
@@ -33,7 +33,7 @@ while ! minikube kubectl -- get pods -l app=postgres | grep -q "1/1"; do
 done
 
 # apply the config for kafka
-minikube kubectl -- apply -f kafka/zookeeper.yaml
+minikube kubectl -- apply -f infra/kafka/zookeeper.yaml
 
 # wait for zookeeper to be ready
 while ! minikube kubectl -- get pods -l app=zookeeper | grep -q "1/1"; do
@@ -41,7 +41,7 @@ while ! minikube kubectl -- get pods -l app=zookeeper | grep -q "1/1"; do
     sleep 5
 done
 
-minikube kubectl -- apply -f kafka/kafka.yaml
+minikube kubectl -- apply -f infra/kafka/kafka.yaml
 
 # wait for kafka to be ready
 while ! minikube kubectl -- get pods -l app=kafka | grep -q "1/1"; do
@@ -49,23 +49,23 @@ while ! minikube kubectl -- get pods -l app=kafka | grep -q "1/1"; do
     sleep 5
 done
 
-minikube kubectl -- apply -f kafka/admin.yaml
+minikube kubectl -- apply -f infra/kafka/admin.yaml
 
 # apply the config for kafka-producer
-cd kafka-producer
-docker build -t producer-test:latest -f ./Dockerfile .
+cd apps/kafka-producer
+docker build -t kafka-producer:latest -f ./Dockerfile .
 minikube kubectl -- apply -f kafka-producer.yaml
-cd ..
+cd -
 
 
 # apply the config for kafka-worker
-cd kafka-worker
-docker build -t worker-test:latest -f Dockerfile.example_events_worker .
+cd apps/kafka-worker
+docker build -t kafka-worker:latest -f Dockerfile.example_events_worker .
 minikube kubectl -- apply -f kafka-worker.yaml
-cd ..
+cd -
 
 # apply the config for kafka-worker-api
-cd kafka-worker
-docker build -t worker-api-test:latest -f Dockerfile .
+cd apps/kafka-worker
+docker build -t kafka-worker-api:latest -f Dockerfile .
 minikube kubectl -- apply -f kafka-worker-api.yaml
-cd ..
+cd -

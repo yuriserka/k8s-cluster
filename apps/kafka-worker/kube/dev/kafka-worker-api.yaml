@@ -1,0 +1,10 @@
+port: 8000
+
+env:
+  DB__HOST: postgres-service
+  DB__USER: root
+  DB__PASSWORD: example
+  DB__NAME: kafka-worker
+
+# livenessProbePath: /actuator/health/liveness
+# readinessProbePath: /actuator/health/readiness
