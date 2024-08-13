@@ -30,6 +30,26 @@ def get_resources_for(app_name: str, namespace: str) -> dict:
     return resources
 
 
+def execute_helm_commands(app_name: str, namespace: str, values: dict):
+    generated_file_name = f'tmp-{app_name}-values.yaml'
+    generated_file_path = f'envs/{namespace}/{generated_file_name}'
+    with open(generated_file_path, 'w') as result:
+        yaml.dump(values, result)
+
+    os.system(
+        f'helm template {app_name} envs/{namespace} -n {namespace} -f {generated_file_path} >'
+        f' apps/{repository}/{app_name}-{namespace}.yaml'
+    )
+    status = os.system(
+        f'helm install {app_name} envs/{namespace} -n {namespace} -f {generated_file_path}'
+    )
+    if status != 0:
+        os.system(
+            f'helm upgrade {app_name} envs/{namespace} -n {namespace} -f {generated_file_path}'
+        )
+    os.system(f'rm {generated_file_path}')
+
+
 def install_app(repository: str, namespace: str):
     # os.system(f'k create namespace {namespace}')
     values = get_values_template_for(namespace)
@@ -62,19 +82,7 @@ def install_app(repository: str, namespace: str):
             else:
                 values_ref[key] = {**values_ref[key], **value}
 
-        generated_file_name = f'tmp-{app_name}-values.yaml'
-        generated_file_path = f'envs/{namespace}/{generated_file_name}'
-        with open(generated_file_path, 'w') as result:
-            yaml.dump(values_ref, result)
-
-        os.system(
-            f'helm template {app_name} envs/{namespace} -n {namespace} -f {generated_file_path} >'
-            f' apps/{repository}/{app_name}-{namespace}.yaml'
-        )
-        os.system(
-            f'helm install {app_name} envs/{namespace} -n {namespace} -f {generated_file_path}'
-        )
-        os.system(f'rm {generated_file_path}')
+        execute_helm_commands(app_name, namespace, values_ref)
 
 
 def main(repository: str, namespace: str):

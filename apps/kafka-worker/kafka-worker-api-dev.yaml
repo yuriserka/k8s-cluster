@@ -11,7 +11,7 @@ metadata:
     app.kubernetes.io/version: "latest"
     app.kubernetes.io/managed-by: Helm
 data:
-  DB__HOST: "postgres-service"
+  DB__HOST: "postgresql"
   DB__NAME: "kafka-worker"
   DB__PASSWORD: "example"
   DB__USER: "root"

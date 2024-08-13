@@ -1,7 +1,7 @@
 port: 8000
 
 env:
-  DB__HOST: postgres-service
+  DB__HOST: postgresql
   DB__USER: root
   DB__PASSWORD: example
   DB__NAME: kafka-worker

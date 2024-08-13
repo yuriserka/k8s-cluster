@@ -1,0 +1,10 @@
+auth:
+  password: example
+  username: root
+  postgresPassword: admin
+primary:
+  service:
+    ports:
+      postgresql: 5432
+  persistence:
+    size: 1Gi
