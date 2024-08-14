@@ -40,13 +40,9 @@ def execute_helm_commands(app_name: str, namespace: str, values: dict):
         f'helm template {app_name} envs/{namespace} -n {namespace} -f {generated_file_path} >'
         f' apps/{repository}/{app_name}-{namespace}.yaml'
     )
-    status = os.system(
+    os.system(
         f'helm install {app_name} envs/{namespace} -n {namespace} -f {generated_file_path}'
     )
-    if status != 0:
-        os.system(
-            f'helm upgrade {app_name} envs/{namespace} -n {namespace} -f {generated_file_path}'
-        )
     os.system(f'rm {generated_file_path}')
 
 
