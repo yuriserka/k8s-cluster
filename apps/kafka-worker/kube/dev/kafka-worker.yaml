@@ -1,3 +1,10 @@
+cmd:
+  - "python"
+
+args:
+  - "manage.py"
+  - "start_example_events_consumer"
+
 port: 8005
 
 env:

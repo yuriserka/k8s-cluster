@@ -31,6 +31,16 @@ spec:
         - name: {{ include "dev.fullname" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.container.cmd }}
+          command:
+            {{- with .Values.container.cmd }}
+            {{ toYaml . }}
+            {{- end }}
+          args:
+            {{- with .Values.container.args }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}

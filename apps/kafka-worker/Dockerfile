@@ -17,8 +17,4 @@ COPY . .
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-EXPOSE 8000
-
 ENV PATH="/opt/venv/bin:$PATH"
-
-CMD ["python", "-m", "gunicorn", "kafkaworker.asgi:application", "-k", "uvicorn.workers.UvicornWorker"]

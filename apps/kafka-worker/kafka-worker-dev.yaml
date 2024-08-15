@@ -71,6 +71,11 @@ spec:
         - name: kafka-worker-dev
           image: "kafka-worker:latest"
           imagePullPolicy: Never
+          command:
+            - python
+          args:
+            - manage.py
+            - start_example_events_consumer
           ports:
             - name: http
               containerPort: 8005

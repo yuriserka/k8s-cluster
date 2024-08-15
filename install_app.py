@@ -4,7 +4,7 @@ import yaml
 
 def get_values_template_for(namespace: str):
     values_file = open(f'envs/{namespace}/values.yaml')
-    values = yaml.load(values_file, Loader=yaml.FullLoader)
+    values = yaml.safe_load(values_file)
     values_file.close()
 
     return values
@@ -17,14 +17,14 @@ def get_declared_values_for_apps(repository: str, namespace: str) -> dict:
     for app_with_extension in all_apps_with_extension:
         app = app_with_extension.split('.')[0]
         with open(f'apps/{repository}/kube/{namespace}/{app_with_extension}') as override_file:
-            values[app] = yaml.load(override_file, Loader=yaml.FullLoader)
+            values[app] = yaml.safe_load(override_file)
 
     return values
 
 
 def get_resources_for(app_name: str, namespace: str) -> dict:
     resources_file = open(f'resources/{app_name}/{namespace}.yaml')
-    resources = yaml.load(resources_file, Loader=yaml.FullLoader)
+    resources = yaml.safe_load(resources_file)
     resources_file.close()
 
     return resources
@@ -34,7 +34,13 @@ def execute_helm_commands(app_name: str, namespace: str, values: dict):
     generated_file_name = f'tmp-{app_name}-values.yaml'
     generated_file_path = f'envs/{namespace}/{generated_file_name}'
     with open(generated_file_path, 'w') as result:
-        yaml.dump(values, result)
+        yaml.safe_dump(
+            values,
+            result,
+            sort_keys=False,
+            default_flow_style=None,
+            allow_unicode=True,
+        )
 
     os.system(
         f'helm template {app_name} envs/{namespace} -n {namespace} -f {generated_file_path} >'
@@ -46,6 +52,26 @@ def execute_helm_commands(app_name: str, namespace: str, values: dict):
     os.system(f'rm {generated_file_path}')
 
 
+def update_value(obj: dict, path: str, value):
+    def update_deep_nested_dict(nested_dict, keys, new_value):
+        if len(keys) == 1:
+            nested_dict[keys[0]] = new_value
+        else:
+            update_deep_nested_dict(nested_dict[keys[0]], keys[1:], new_value)
+
+    keys = path.split(".")
+    return update_deep_nested_dict(obj, keys, value)
+
+
+mapping_kube_to_helm_values = {
+    'cmd': 'container.cmd',
+    'args': 'container.args',
+    'livenessProbePath': 'livenessProbe.httpGet.path',
+    'readinessProbePath': 'readinessProbe.httpGet.path',
+    'port': 'service.port',
+}
+
+
 def install_app(repository: str, namespace: str):
     # os.system(f'k create namespace {namespace}')
     values = get_values_template_for(namespace)
@@ -53,14 +79,14 @@ def install_app(repository: str, namespace: str):
 
     for app_name, override_value in override_values.items():
         values_ref = {key: value for key, value in values.items()}
-        values_ref['image']['repository'] = app_name
+        update_value(values_ref, 'image.repository', repository)
         for key, value in override_value.items():
-            if key == 'livenessProbePath':
-                values_ref['livenessProbe']['httpGet']['path'] = value
-            elif key == 'readinessProbePath':
-                values_ref['readinessProbe']['httpGet']['path'] = value
-            elif key == 'port':
-                values_ref['service']['port'] = value
+            if key in mapping_kube_to_helm_values:
+                update_value(
+                    values_ref,
+                    mapping_kube_to_helm_values.get(key),
+                    value
+                )
             elif key not in values_ref:
                 values_ref[key] = value
             else:

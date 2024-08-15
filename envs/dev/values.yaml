@@ -8,6 +8,10 @@ image:
   repository: ""
   pullPolicy: Never
 
+container:
+  cmd: null
+  args: []
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""

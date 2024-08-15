@@ -1,3 +1,13 @@
+cmd:
+  - "python"
+
+args:
+  - "-m"
+  - "gunicorn"
+  - "kafkaworker.asgi:application"
+  - "-k"
+  - "uvicorn.workers.UvicornWorker"
+
 port: 8000
 
 env:

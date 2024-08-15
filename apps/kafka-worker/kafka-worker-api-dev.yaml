@@ -66,8 +66,16 @@ spec:
     spec:
       containers:
         - name: kafka-worker-api-dev
-          image: "kafka-worker-api:latest"
+          image: "kafka-worker:latest"
           imagePullPolicy: Never
+          command:
+            - python
+          args:
+            - -m
+            - gunicorn
+            - kafkaworker.asgi:application
+            - -k
+            - uvicorn.workers.UvicornWorker
           ports:
             - name: http
               containerPort: 8000
