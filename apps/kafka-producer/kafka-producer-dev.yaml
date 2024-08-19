@@ -11,7 +11,7 @@ metadata:
     app.kubernetes.io/version: "latest"
     app.kubernetes.io/managed-by: Helm
 data:
-  KAFKA_BOOTSTRAP_SERVERS: "kafka-service:9092"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
   SPRING_PROFILE: "dev"
 ---
 # Source: dev/templates/service.yaml
@@ -78,19 +78,17 @@ spec:
               path: /actuator/health/liveness
               port: http
             initialDelaySeconds: 60
+            timeoutSeconds: 5
           readinessProbe:
-            failureThreshold: 3
             httpGet:
               path: /actuator/health/readiness
               port: http
             initialDelaySeconds: 60
-            periodSeconds: 20
-            successThreshold: 1
             timeoutSeconds: 5
           resources:
             limits:
-              cpu: 250m
-              memory: 512Mi
+              cpu: 400m
+              memory: 1Gi
             requests:
-              cpu: 150m
-              memory: 256Mi
+              cpu: 300m
+              memory: 512Mi

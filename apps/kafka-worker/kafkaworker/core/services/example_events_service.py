@@ -7,8 +7,8 @@ logger = logging.getLogger(__name__)
 
 
 class ExampleEventsService():
-    def save_event(self, event: ExampleEventPayloadDTO):
-        saved_event = ExampleEventModel.objects.create(
+    async def save_event(self, event: ExampleEventPayloadDTO):
+        saved_event = await ExampleEventModel.objects.acreate(
             event_id=event.id,
             event_type=event.type,
             user_id=event.data.user_id,

@@ -12,7 +12,7 @@ env:
   DB__USER: root
   DB__PASSWORD: example
   DB__NAME: kafka-worker
-  KAFKA__KAFKA_BOOTSTRAP_SERVERS: kafka-service:9092
+  KAFKA__KAFKA_BOOTSTRAP_SERVERS: kafka:9092
   KAFKA__KAFKA_CONSUMER_GROUP_ID: kafka-worker
   KAFKA__TOPICS__EXAMPLE_EVENTS: example-topic
 

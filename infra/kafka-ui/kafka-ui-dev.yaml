@@ -1,0 +1,130 @@
+---
+# Source: kafka-ui/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kafka-ui
+  namespace: dev
+  labels:
+    helm.sh/chart: kafka-ui-0.7.6
+    app.kubernetes.io/name: kafka-ui
+    app.kubernetes.io/instance: kafka-ui
+    app.kubernetes.io/version: "v0.7.2"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: kafka-ui/templates/configmap_fromValues.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-ui-fromvalues
+  namespace: dev
+  labels:
+    helm.sh/chart: kafka-ui-0.7.6
+    app.kubernetes.io/name: kafka-ui
+    app.kubernetes.io/instance: kafka-ui
+    app.kubernetes.io/version: "v0.7.2"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yml: |-
+    auth:
+      type: disabled
+    kafka:
+      clusters:
+      - bootstrapServers: kafka:9092
+        name: local
+    management:
+      health:
+        ldap:
+          enabled: false
+---
+# Source: kafka-ui/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-ui
+  namespace: dev
+  labels:
+    helm.sh/chart: kafka-ui-0.7.6
+    app.kubernetes.io/name: kafka-ui
+    app.kubernetes.io/instance: kafka-ui
+    app.kubernetes.io/version: "v0.7.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: kafka-ui
+    app.kubernetes.io/instance: kafka-ui
+---
+# Source: kafka-ui/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-ui
+  namespace: dev
+  labels:
+    helm.sh/chart: kafka-ui-0.7.6
+    app.kubernetes.io/name: kafka-ui
+    app.kubernetes.io/instance: kafka-ui
+    app.kubernetes.io/version: "v0.7.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kafka-ui
+      app.kubernetes.io/instance: kafka-ui
+  template:
+    metadata:
+      annotations:
+        checksum/config: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        checksum/configFromValues: a0808da53dc5a5b55c03057215d7732308cad19b2af6e3ad5c0fbfd49014635e
+        checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+      labels:
+        app.kubernetes.io/name: kafka-ui
+        app.kubernetes.io/instance: kafka-ui
+    spec:
+      serviceAccountName: kafka-ui
+      securityContext:
+        {}
+      containers:
+        - name: kafka-ui
+          securityContext:
+            {}
+          image: docker.io/provectuslabs/kafka-ui:v0.7.2
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SPRING_CONFIG_ADDITIONAL-LOCATION
+              value: /kafka-ui/config.yml
+          envFrom: []   
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+          resources:
+            {}
+          volumeMounts:
+            - name: kafka-ui-yaml-conf
+              mountPath: /kafka-ui/
+      volumes:
+        - name: kafka-ui-yaml-conf
+          configMap: 
+            name: kafka-ui-fromvalues

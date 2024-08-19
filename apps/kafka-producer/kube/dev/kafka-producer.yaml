@@ -2,7 +2,7 @@ port: 8080
 
 env:
   SPRING_PROFILE: dev
-  KAFKA_BOOTSTRAP_SERVERS: kafka-service:9092
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
 
 livenessProbePath: /actuator/health/liveness
 readinessProbePath: /actuator/health/readiness

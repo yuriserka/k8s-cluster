@@ -1,0 +1,21 @@
+kraft:
+  enabled: true
+service:
+  ports:
+    client: 9092
+controller:
+  replicaCount: 1
+  persistence:
+    size: 1Gi
+listeners:
+  client:
+    protocol: 'PLAINTEXT'
+  controller:
+    protocol: 'PLAINTEXT'
+  interbroker:
+    protocol: 'PLAINTEXT'
+  external:
+    protocol: 'PLAINTEXT'
+extraConfig: |
+  offsets.topic.replication.factor=1
+  transaction.state.log.replication.factor=1
