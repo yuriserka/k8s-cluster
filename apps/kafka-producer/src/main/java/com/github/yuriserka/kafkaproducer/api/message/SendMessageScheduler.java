@@ -18,10 +18,10 @@ public class SendMessageScheduler {
     private final SendMessageToUserUseCase sendMessageToUserUseCase;
     private final Faker fakerGenerator = new Faker();
 
-    // @Scheduled(fixedRate = 60, timeUnit = TimeUnit.SECONDS)
-    // public void process() {
-    //     final var startTime = System.currentTimeMillis();
-    //     sendMessageToUserUseCase.execute(fakerGenerator.internet().username());
-    //     log.info("Processing took {} ms", System.currentTimeMillis() - startTime);
-    // }
+    @Scheduled(fixedRate = 60, timeUnit = TimeUnit.SECONDS)
+    public void process() {
+        final var startTime = System.currentTimeMillis();
+        sendMessageToUserUseCase.execute(fakerGenerator.internet().username());
+        log.info("Processing took {} ms", System.currentTimeMillis() - startTime);
+    }
 }
