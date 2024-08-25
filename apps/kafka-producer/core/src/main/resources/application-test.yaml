@@ -1,0 +1,5 @@
+spring.http.gateways:
+    geocoding.url: http://geocoding-api
+    openmeteo.forecast.url: http://open-meteo-forecast-api
+
+spring.kafka.bootstrap-servers: localhost:9092

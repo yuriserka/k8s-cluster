@@ -1,0 +1,9 @@
+jar {
+    enabled = false
+}
+
+dependencies {
+    implementation project(':core')
+
+	implementation "net.datafaker:datafaker:${dataFakerVersion}"
+}
