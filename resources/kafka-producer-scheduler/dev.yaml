@@ -1,0 +1,15 @@
+resources:
+  limits:
+    cpu: 400m
+    memory: 1Gi
+
+  requests:
+    cpu: 300m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  # minReplicas: 1
+  # maxReplicas: 2
+  # targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80

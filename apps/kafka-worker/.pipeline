@@ -1,0 +1,43 @@
+steps:
+  env:
+    cmd:
+      - "python3 -m venv .venv"
+
+  install:
+    cmd:
+      - ". .venv/bin/activate && pip install -r requirements.txt"
+      - ". .venv/bin/activate && pip install -r requirements_dev.txt"
+
+  lint:
+    cmd:
+      - ". .venv/bin/activate && python -m flake8"
+
+  test:
+    cmd:
+      - ". .venv/bin/activate && python -Wa manage.py test"
+
+  dev-publish-api:
+    kind: publish
+    repo: kafka-worker-api
+    dockerfile: Dockerfile
+    env: dev
+
+  dev-publish-kafka-worker:
+    kind: publish
+    repo: kafka-worker-example-topic-consumer
+    dockerfile: Dockerfile
+    env: dev
+
+  dev-deploy-api:
+    kind: install
+    repo: kafka-worker
+    application: kafka-worker-api
+    params_file: api.yaml
+    env: dev
+
+  dev-deploy-kafka-worker:
+    kind: install
+    repo: kafka-worker
+    application: kafka-worker-example-topic-consumer
+    params_file: example-topic-consumer.yaml
+    env: dev

@@ -3,6 +3,8 @@ port: 8080
 env:
   SPRING_PROFILE: dev
   KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  GEOCODING_URL: https://geocoding-api.open-meteo.com
+  OPENMETEO_FORECAST_URL: https://api.open-meteo.com/v1/forecast
 
 livenessProbePath: /actuator/health/liveness
 readinessProbePath: /actuator/health/readiness

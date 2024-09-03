@@ -16,5 +16,7 @@ env:
   KAFKA__KAFKA_CONSUMER_GROUP_ID: kafka-worker
   KAFKA__TOPICS__EXAMPLE_EVENTS: example-topic
 
-# livenessProbePath: /actuator/health/liveness
-# readinessProbePath: /actuator/health/readiness
+livenessProbeCmd:
+  - ./worker_health_check.py
+readinessProbeCmd:
+  - ./worker_health_check.py

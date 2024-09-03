@@ -14,6 +14,8 @@ COPY --from=compile-image /opt/venv /opt/venv
 WORKDIR /app
 COPY . .
 
+RUN chmod +x /app/worker_health_check.py
+
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 

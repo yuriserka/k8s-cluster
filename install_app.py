@@ -1,39 +1,31 @@
 import os
 import yaml
 
-
-def get_values_template_for(namespace: str):
-    values_file = open(f'envs/{namespace}/values.yaml')
-    values = yaml.safe_load(values_file)
-    values_file.close()
-
-    return values
+root_dir = os.getcwd()
 
 
-def get_declared_values_for_apps(repository: str, namespace: str) -> dict:
-    all_apps_with_extension = os.listdir(f'apps/{repository}/kube/{namespace}')
-    values = {}
+def get_values_template_for(namespace: str) -> dict:
+    with open(f'envs/{namespace}/values.yaml') as values_file:
+        return yaml.safe_load(values_file)
 
-    for app_with_extension in all_apps_with_extension:
-        app = app_with_extension.split('.')[0]
-        with open(f'apps/{repository}/kube/{namespace}/{app_with_extension}') as override_file:
-            values[app] = yaml.safe_load(override_file)
 
-    return values
+def get_declared_values_for_app(env_file: str, namespace: str, path: str) -> dict:
+    os.chdir(path)
+
+    with open(f'kube/{namespace}/{env_file}') as override_file:
+        content = yaml.safe_load(override_file)
+        os.chdir(root_dir)
+        return content
 
 
 def get_resources_for(app_name: str, namespace: str) -> dict:
-    resources_file = open(f'resources/{app_name}/{namespace}.yaml')
-    resources = yaml.safe_load(resources_file)
-    resources_file.close()
-
-    return resources
+    with open(f'resources/{app_name}/{namespace}.yaml') as resources_file:
+        return yaml.safe_load(resources_file)
 
 
-def execute_helm_commands(app_name: str, namespace: str, values: dict):
-    generated_file_name = f'tmp-{app_name}-values.yaml'
-    generated_file_path = f'envs/{namespace}/{generated_file_name}'
-    with open(generated_file_path, 'w') as result:
+def execute_helm_commands(app_name: str, repository: str, namespace: str, values: dict) -> int:
+    generated_file_name = 'values.yaml'
+    with open(generated_file_name, 'w') as result:
         yaml.safe_dump(
             values,
             result,
@@ -43,13 +35,18 @@ def execute_helm_commands(app_name: str, namespace: str, values: dict):
         )
 
     os.system(
-        f'helm template {app_name} envs/{namespace} -n {namespace} -f {generated_file_path} >'
-        f' apps/{repository}/{app_name}-{namespace}.yaml'
+        f'helm template {app_name} ../envs/{namespace} -n {namespace} -f {generated_file_name} >'
+        f' ../apps/{repository}/{app_name}-{namespace}.yaml'
     )
-    os.system(
-        f'helm install {app_name} envs/{namespace} -n {namespace} -f {generated_file_path}'
+    app_installed = os.system(
+        f'helm install {app_name} ../envs/{namespace} -n {namespace} -f {generated_file_name}'
     )
-    os.system(f'rm {generated_file_path}')
+    if app_installed != 0:
+        app_installed = os.system(
+            f'helm upgrade {app_name} ../envs/{namespace} -n {namespace} -f {generated_file_name}'
+        )
+
+    return app_installed
 
 
 def update_value(obj: dict, path: str, value):
@@ -66,49 +63,81 @@ def update_value(obj: dict, path: str, value):
 mapping_kube_to_helm_values = {
     'cmd': 'container.cmd',
     'args': 'container.args',
-    'livenessProbePath': 'livenessProbe.httpGet.path',
-    'readinessProbePath': 'readinessProbe.httpGet.path',
     'port': 'service.port',
 }
 
 
-def install_app(repository: str, namespace: str):
+def handle_probes(values: dict, key: str | None = None, value=None):
+    if key is None and value is None:
+        has_liveness_http = values.get('livenessProbe').get('httpGet') is not None
+        has_readines_http = values.get('readinessProbe').get('httpGet') is not None
+        has_liveness_exec = values.get('livenessProbe').get('exec') is not None
+        has_readiness_exec = values.get('readinessProbe').get('exec') is not None
+
+        if not has_liveness_http and not has_liveness_exec:
+            update_value(values, 'livenessProbe', None)
+        if not has_readines_http and not has_readiness_exec:
+            update_value(values, 'readinessProbe', None)
+
+        return
+
+    real_key = 'livenessProbe' if 'liveness' in key else 'readinessProbe'
+    if 'Cmd' in key:
+        probe = {
+            **values.get(real_key, {}),
+            'exec': {
+                'command': value
+            }
+        }
+        update_value(values, real_key, probe)
+    elif 'Path' in key:
+        probe = {
+            **values.get(real_key, {}),
+            'httpGet': {
+                'path': value,
+                'port': 'http'
+            }
+        }
+        update_value(values, real_key, probe)
+
+
+def install_app(application: str, repository: str,  environment_file: str, namespace: str, path: str) -> int:
     # os.system(f'k create namespace {namespace}')
     values = get_values_template_for(namespace)
-    override_values = get_declared_values_for_apps(repository, namespace)
+    override_value = get_declared_values_for_app(
+        environment_file, namespace, path)
 
-    for app_name, override_value in override_values.items():
-        values_ref = {key: value for key, value in values.items()}
-        update_value(values_ref, 'image.repository', repository)
-        for key, value in override_value.items():
-            if key in mapping_kube_to_helm_values:
-                update_value(
-                    values_ref,
-                    mapping_kube_to_helm_values.get(key),
-                    value
-                )
-            elif key not in values_ref:
-                values_ref[key] = value
-            else:
-                values_ref[key] = {**values_ref[key], **value}
+    values_ref = {key: value for key, value in values.items()}
+    update_value(values_ref, 'image.repository', f'{application}-{namespace}')
+    for key, value in override_value.items():
+        if 'Probe' in key:
+            handle_probes(values_ref, key, value)
+        if key in mapping_kube_to_helm_values:
+            update_value(
+                values_ref,
+                mapping_kube_to_helm_values.get(key),
+                value
+            )
+        elif key not in values_ref:
+            values_ref[key] = value
+        else:
+            values_ref[key] = {**values_ref[key], **value}
 
-        if values_ref['livenessProbe']['httpGet']['path'] == '':
-            values_ref['livenessProbe'] = None
-        if values_ref['readinessProbe']['httpGet']['path'] == '':
-            values_ref['readinessProbe'] = None
+    handle_probes(values_ref)
+    resources = get_resources_for(application, namespace)
+    for key, value in resources.items():
+        if key not in values_ref:
+            values_ref[key] = value
+        else:
+            values_ref[key] = {**values_ref[key], **value}
 
-        resources = get_resources_for(app_name, namespace)
-        for key, value in resources.items():
-            if key not in values_ref:
-                values_ref[key] = value
-            else:
-                values_ref[key] = {**values_ref[key], **value}
+    os.chdir(path)
 
-        execute_helm_commands(app_name, namespace, values_ref)
+    return execute_helm_commands(application, repository, namespace, values_ref)
 
 
-def main(repository: str, namespace: str):
-    install_app(repository, namespace)
+def main(application: str, repository: str, environment_file: str, namespace: str, path: str) -> int:
+    return install_app(application, repository, environment_file, namespace, path)
 
 
 if __name__ == '__main__':
@@ -118,7 +147,35 @@ if __name__ == '__main__':
         print("Namespace is required to install the app. Use -n flag to specify the namespace.")
         exit(1)
 
-    namespace = args[args.index("-n") + 1]
-    repository = args[0]
+    if "-a" not in args:
+        print("Application is required to install the app. Use -a flag to specify the application.")
+        exit(1)
 
-    main(repository, namespace)
+    if "-e" not in args:
+        print("Environment is required to install the app. Use -e flag to specify the environment_file.")
+        exit(1)
+
+    if "-p" not in args:
+        print("Path is required to install the app. Use -p flag to specify the path.")
+        exit(1)
+
+    application = args[args.index("-a") + 1]
+    environment_file = args[args.index("-e") + 1]
+    path = args[args.index("-p") + 1]
+    namespace = args[args.index("-n") + 1]
+    repository = args[args.index("-r") + 1]
+
+    exit_code = main(
+        application,
+        repository,
+        environment_file,
+        namespace,
+        path
+    )
+
+    os.chdir(root_dir)
+
+    if exit_code != 0:
+        raise Exception(
+            f'Installation of {application} failed with code {exit_code}'
+        )

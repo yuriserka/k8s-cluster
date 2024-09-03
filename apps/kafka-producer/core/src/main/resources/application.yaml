@@ -1,6 +1,6 @@
 spring.http.gateways:
-    geocoding.url: https://geocoding-api.open-meteo.com
-    openmeteo.forecast.url: https://api.open-meteo.com/v1/forecast
+    geocoding.url: ${GEOCODING_URL}
+    openmeteo.forecast.url: ${OPENMETEO_FORECAST_URL}
 
 server:
     address: 0.0.0.0

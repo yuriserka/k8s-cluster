@@ -1,0 +1,42 @@
+steps:
+  install:
+    cmd:
+      - "gradle clean assemble -x bootJar"
+
+  lint:
+    cmd:
+      - "gradle check -x test"
+
+  test:
+    cmd:
+      - "gradle test -x bootJar"
+
+  build:
+    cmd:
+      - "gradle bootJar"
+
+  dev-publish-api:
+    kind: publish
+    repo: kafka-producer-api
+    dockerfile: api/Dockerfile
+    env: dev
+
+  dev-publish-scheduler:
+    kind: publish
+    repo: kafka-producer-scheduler
+    dockerfile: scheduler/Dockerfile
+    env: dev
+
+  dev-deploy-api:
+    kind: install
+    repo: kafka-producer
+    application: kafka-producer-api
+    params_file: api.yaml
+    env: dev
+
+  dev-deploy-scheduler:
+    kind: install
+    repo: kafka-producer
+    application: kafka-producer-scheduler
+    params_file: scheduler.yaml
+    env: dev

@@ -7,6 +7,7 @@ replicaCount: 1
 image:
   repository: ""
   pullPolicy: Never
+  tag: "latest"
 
 container:
   cmd: null
@@ -55,18 +56,14 @@ ingress:
 resources: {}
 
 livenessProbe:
-  httpGet:
-    path: ""
-    port: http
-  initialDelaySeconds: 60
-  timeoutSeconds: 5
+  initialDelaySeconds: 15
+  periodSeconds: 5
+  timeoutSeconds: 60
 
 readinessProbe:
-  httpGet:
-    path: ""
-    port: http
-  initialDelaySeconds: 60
-  timeoutSeconds: 5
+  initialDelaySeconds: 15
+  periodSeconds: 5
+  timeoutSeconds: 60
 
 autoscaling:
   enabled: true
