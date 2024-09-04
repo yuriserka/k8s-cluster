@@ -65,6 +65,10 @@ readinessProbe:
   periodSeconds: 5
   timeoutSeconds: 60
 
+startupProbe:
+  failureThreshold: 30
+  periodSeconds: 10
+
 autoscaling:
   enabled: true
 

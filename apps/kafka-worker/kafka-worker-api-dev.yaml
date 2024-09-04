@@ -58,7 +58,7 @@ spec:
   template:
     metadata:
       annotations:
-        rollme: "CnAof"
+        rollme: "jWZhj"
       labels:
         helm.sh/chart: dev-0.1.0
         app.kubernetes.io/name: dev
@@ -88,6 +88,8 @@ spec:
           livenessProbe:
             null
           readinessProbe:
+            null
+          startupProbe:
             null
           resources:
             limits:

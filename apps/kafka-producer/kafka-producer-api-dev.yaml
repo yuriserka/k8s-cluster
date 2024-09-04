@@ -58,7 +58,7 @@ spec:
   template:
     metadata:
       annotations:
-        rollme: "PJ0pw"
+        rollme: "3QuJ6"
       labels:
         helm.sh/chart: dev-0.1.0
         app.kubernetes.io/name: dev
@@ -87,6 +87,14 @@ spec:
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 60
+          startupProbe:
+            failureThreshold: 30
+            httpGet:
+              path: /actuator/health/liveness
               port: http
             initialDelaySeconds: 15
             periodSeconds: 5

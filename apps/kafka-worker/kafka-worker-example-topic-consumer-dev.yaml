@@ -61,7 +61,7 @@ spec:
   template:
     metadata:
       annotations:
-        rollme: "Bk69T"
+        rollme: "RTzRy"
       labels:
         helm.sh/chart: dev-0.1.0
         app.kubernetes.io/name: dev
@@ -96,6 +96,14 @@ spec:
             exec:
               command:
               - ./worker_health_check.py
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 60
+          startupProbe:
+            exec:
+              command:
+              - ./worker_health_check.py
+            failureThreshold: 30
             initialDelaySeconds: 15
             periodSeconds: 5
             timeoutSeconds: 60

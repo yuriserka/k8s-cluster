@@ -69,19 +69,28 @@ mapping_kube_to_helm_values = {
 
 def handle_probes(values: dict, key: str | None = None, value=None):
     if key is None and value is None:
-        has_liveness_http = values.get('livenessProbe').get('httpGet') is not None
-        has_readines_http = values.get('readinessProbe').get('httpGet') is not None
+        has_liveness_http = values.get(
+            'livenessProbe').get('httpGet') is not None
+        has_readines_http = values.get(
+            'readinessProbe').get('httpGet') is not None
         has_liveness_exec = values.get('livenessProbe').get('exec') is not None
-        has_readiness_exec = values.get('readinessProbe').get('exec') is not None
+        has_readiness_exec = values.get(
+            'readinessProbe').get('exec') is not None
+        has_startup_http = values.get(
+            'startupProbe').get('httpGet') is not None
+        has_startup_exec = values.get('startupProbe').get('exec') is not None
 
         if not has_liveness_http and not has_liveness_exec:
             update_value(values, 'livenessProbe', None)
         if not has_readines_http and not has_readiness_exec:
             update_value(values, 'readinessProbe', None)
+        if not has_startup_http and not has_startup_exec:
+            update_value(values, 'startupProbe', None)
 
         return
 
     real_key = 'livenessProbe' if 'liveness' in key else 'readinessProbe'
+    probe = None
     if 'Cmd' in key:
         probe = {
             **values.get(real_key, {}),
@@ -99,6 +108,9 @@ def handle_probes(values: dict, key: str | None = None, value=None):
             }
         }
         update_value(values, real_key, probe)
+
+    if probe is not None and real_key == 'livenessProbe':
+        update_value(values, 'startupProbe', probe)
 
 
 def install_app(application: str, repository: str,  environment_file: str, namespace: str, path: str) -> int:
