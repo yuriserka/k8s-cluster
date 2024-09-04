@@ -1,5 +1,5 @@
 rootProject.name = 'kafka-producer'
 
-include 'core'
-include 'api'
-include 'scheduler'
+include ':app:core'
+include ':app:containers:api'
+include ':app:containers:scheduler'

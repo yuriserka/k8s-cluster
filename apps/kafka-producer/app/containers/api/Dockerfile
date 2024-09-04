@@ -2,7 +2,7 @@ FROM eclipse-temurin:17-jdk-alpine
 
 WORKDIR /usr/src/java-app
 
-COPY ./api/build/libs/*.jar ./api.jar
+COPY ./app/containers/api/build/libs/*.jar ./api.jar
 
 ENV SPRING_PROFILE="local"
 

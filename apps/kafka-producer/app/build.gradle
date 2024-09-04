@@ -57,9 +57,9 @@ subprojects {
     }
 
    dependencies {
-        implementation "org.springframework.boot:spring-boot-starter-actuator"
-        developmentOnly "org.springframework.boot:spring-boot-devtools"
-        testImplementation "org.springframework.boot:spring-boot-starter-test"
+        implementation "org.springframework.boot:spring-boot-starter-actuator:${springBootVersion}"
+        developmentOnly "org.springframework.boot:spring-boot-devtools:${springBootVersion}"
+        testImplementation "org.springframework.boot:spring-boot-starter-test:${springBootVersion}"
 
         implementation "com.fasterxml.jackson.core:jackson-databind"
         implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"

@@ -2,7 +2,7 @@ FROM eclipse-temurin:17-jdk-alpine
 
 WORKDIR /usr/src/java-app
 
-COPY ./scheduler/build/libs/*.jar ./scheduler.jar
+COPY ./app/containers/scheduler/build/libs/*.jar ./scheduler.jar
 
 ENV SPRING_PROFILE="local"
 
