@@ -1,3 +1,4 @@
+from random import randint
 import logging
 from typing import Optional
 from kafkaworker.config import config
@@ -30,6 +31,28 @@ class ExampleEventKafkaConsumer(AbstractKafkaConsumer[ExampleEventPayloadDTO]):
         )
 
     async def handle_message(self, key: Optional[str], message: ExampleEventPayloadDTO):
+        if message.data.name == "error":
+            logger.error(
+                f"message {message.id} is an error message"
+            )
+            raise Exception(
+                f"error message {message.id} received"
+            )
+
+        if message.data.name == "test":
+            logger.info(
+                f"message {message.id} is a test message"
+            )
+
+            rand_id_index = randint(0, len(message.id) - 1)
+            checked_char = message.id[rand_id_index]
+            if ord(checked_char) % 2 == 0:
+                raise Exception(
+                    f"test message {message.id} failed due to character {checked_char} at index {rand_id_index}"
+                )
+            else:
+                logger.info(f"test message {message.id} passed")
+
         logger.info(
             f"saving message {message.id} from user {message.data.name}"
         )
