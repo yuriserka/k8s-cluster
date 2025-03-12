@@ -11,10 +11,7 @@ args:
 port: 8000
 
 env:
-  DB__HOST: postgresql
-  DB__USER: root
-  DB__PASSWORD: example
-  DB__NAME: kafka-worker
+  DATABASE_HOST: postgresql
 
 # livenessProbePath: /actuator/health/liveness
 # readinessProbePath: /actuator/health/readiness

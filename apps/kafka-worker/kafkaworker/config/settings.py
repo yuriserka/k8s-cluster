@@ -80,15 +80,14 @@ WSGI_APPLICATION = 'kafkaworker.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-db_config = config.get('DB')
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': db_config.get('NAME'),
-        'USER': db_config.get('USER'),
-        'PASSWORD': db_config.get('PASSWORD'),
-        'HOST': db_config.get('HOST'),
+        'NAME': config.get('DATABASE_NAME'),
+        'USER': config.get('DATABASE_USER'),
+        'PASSWORD': config.get('DATABASE_PASSWORD'),
+        'HOST': config.get('DATABASE_HOST'),
+        'PORT': config.get('DATABASE_PORT')
     }
 }
 

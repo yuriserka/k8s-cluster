@@ -1,6 +1,6 @@
 import logging
 
-from kafkaworker.core.models.example_event.example_event_model import ExampleEventModel
+from kafkaworker.core.models import ExampleEventModel
 from kafkaworker.core.models.example_event.payloads.kafka_message import ExampleEventPayloadDTO
 
 logger = logging.getLogger(__name__)

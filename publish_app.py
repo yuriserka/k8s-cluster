@@ -3,9 +3,18 @@ import os
 root_dir = os.getcwd()
 
 
-def main(repository: str, dockerfile_path: str, namespace: str) -> int:
+def main(
+    repository: str,
+    dockerfile_path: str,
+    namespace: str,
+    intra_cluster: bool,
+    tag: str = None
+) -> int:
+    tag = tag or 'latest'
+    image = f'{repository}-{namespace}:{tag}'
+    provider = 'minikube image' if intra_cluster else 'docker'
     return os.system(
-        f'docker build -t {repository}-{namespace}:latest -f {dockerfile_path} .'
+        f'{provider} build -t {image} -f {dockerfile_path} .'
     )
 
 
@@ -32,10 +41,12 @@ if __name__ == '__main__':
     dockerfile_path = args[args.index("-d") + 1]
     repository = args[args.index("-r") + 1]
     path = args[args.index("-p") + 1]
+    tag = args[args.index("-t") + 1] if "-t" in args else None
+    intra_cluster = "-k" in args
 
     os.chdir(path)
 
-    exit_code = main(repository, dockerfile_path, namespace)
+    exit_code = main(repository, dockerfile_path, namespace, intra_cluster, tag)
 
     os.chdir(root_dir)
 

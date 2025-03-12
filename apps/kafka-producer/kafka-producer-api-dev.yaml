@@ -11,6 +11,11 @@ metadata:
     app.kubernetes.io/version: "latest"
     app.kubernetes.io/managed-by: Helm
 data:
+  DATABASE_HOST: "postgresql"
+  DATABASE_NAME: "kafka-producer"
+  DATABASE_PASSWORD: "example"
+  DATABASE_PORT: "5432"
+  DATABASE_USER: "root"
   GEOCODING_URL: "https://geocoding-api.open-meteo.com"
   KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
   OPENMETEO_FORECAST_URL: "https://api.open-meteo.com/v1/forecast"
@@ -58,7 +63,7 @@ spec:
   template:
     metadata:
       annotations:
-        rollme: "o230C"
+        rollme: "GdEvw"
       labels:
         helm.sh/chart: dev-0.1.0
         app.kubernetes.io/name: dev
@@ -68,7 +73,7 @@ spec:
     spec:
       containers:
         - name: kafka-producer-api-dev
-          image: "kafka-producer-api-dev:latest"
+          image: "kafka-producer-api-dev:2025.03.12.01.03.12"
           imagePullPolicy: Never
           ports:
             - name: http

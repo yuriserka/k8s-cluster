@@ -1,3 +1,19 @@
+services:
+  pgsql_database:
+    image: postgres:16.3
+    image_env_vars:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: kafka-worker
+    image_port_map: 5433:5432
+    env_vars:
+      DATABASE_USER: test
+      DATABASE_PASSWORD: test
+      DATABASE_HOST: localhost
+      DATABASE_NAME: kafka-worker
+      DATABASE_PORT: 5433
+    output_file: ./db-credentials
+
 steps:
   env:
     cmd:
@@ -14,7 +30,19 @@ steps:
 
   test:
     cmd:
-      - ". .venv/bin/activate && python -Wa manage.py test"
+      - "export $(cat ./db-credentials) && . .venv/bin/activate && python -Wa manage.py test"
+
+  dev-get-database-credentials:
+    kind: credentials
+    path: database:kafka-worker:dev
+    output_file: ./db-credentials
+
+  dev-migrate:
+    kind: database_migration
+    env: dev
+    cmd:
+      - "export $(cat ./db-credentials) && . .venv/bin/activate && python manage.py showmigrations"
+      - "export $(cat ./db-credentials) && . .venv/bin/activate && python manage.py migrate"
 
   dev-publish-api:
     kind: publish

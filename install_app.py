@@ -18,6 +18,24 @@ def get_declared_values_for_app(env_file: str, namespace: str, path: str) -> dic
         return content
 
 
+def get_secrets_for_app(repository: str, namespace: str) -> dict:
+    all_secrets = {}
+    os.chdir(root_dir)
+    resource_directories = os.listdir(f'resources/vault/{repository}')
+    for resource in resource_directories:
+        env_dir = f'resources/vault/{repository}/{resource}/{namespace}'
+        if not os.path.isdir(env_dir):
+            continue
+
+        with open(f'{env_dir}/.env') as secrets_file:
+            lines = secrets_file.readlines()
+            for line in lines:
+                key, value = line.split('=')
+                all_secrets[f"{resource.upper()}_{key.upper()}"] = value.strip()
+
+    return all_secrets
+
+
 def get_resources_for(app_name: str, namespace: str) -> dict:
     with open(f'resources/{app_name}/{namespace}.yaml') as resources_file:
         return yaml.safe_load(resources_file)
@@ -113,14 +131,34 @@ def handle_probes(values: dict, key: str | None = None, value=None):
         update_value(values, 'startupProbe', probe)
 
 
-def install_app(application: str, repository: str,  environment_file: str, namespace: str, path: str) -> int:
+def install_app(
+    application: str,
+    repository: str,
+    environment_file: str,
+    namespace: str,
+    path: str,
+    tag: str = None
+) -> int:
     # os.system(f'k create namespace {namespace}')
     values = get_values_template_for(namespace)
     override_value = get_declared_values_for_app(
-        environment_file, namespace, path)
+        environment_file,
+        namespace,
+        path
+    )
+
+    # declared values in app/kube is prioritized over values in envs
+    override_value = {
+        **override_value,
+        'env': {
+            **get_secrets_for_app(repository, namespace),
+            **override_value.get('env', {}),
+        }
+    }
 
     values_ref = {key: value for key, value in values.items()}
     update_value(values_ref, 'image.repository', f'{application}-{namespace}')
+    update_value(values_ref, 'image.tag', tag)
     for key, value in override_value.items():
         if 'Probe' in key:
             handle_probes(values_ref, key, value)
@@ -148,8 +186,9 @@ def install_app(application: str, repository: str,  environment_file: str, names
     return execute_helm_commands(application, repository, namespace, values_ref)
 
 
-def main(application: str, repository: str, environment_file: str, namespace: str, path: str) -> int:
-    return install_app(application, repository, environment_file, namespace, path)
+def main(application: str, repository: str, environment_file: str, namespace: str, path: str, tag: str) -> int:
+    tag = tag or 'latest'
+    return install_app(application, repository, environment_file, namespace, path, tag)
 
 
 if __name__ == '__main__':
@@ -176,13 +215,15 @@ if __name__ == '__main__':
     path = args[args.index("-p") + 1]
     namespace = args[args.index("-n") + 1]
     repository = args[args.index("-r") + 1]
+    tag = args[args.index("-t") + 1] if "-t" in args else None
 
     exit_code = main(
         application,
         repository,
         environment_file,
         namespace,
-        path
+        path,
+        tag
     )
 
     os.chdir(root_dir)

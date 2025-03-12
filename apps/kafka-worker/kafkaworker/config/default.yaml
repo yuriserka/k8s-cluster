@@ -1,10 +1,8 @@
-DB:
-  HOST: localhost
-  USER: postgres
-  PASSWORD: postgres
-  NAME: kafka-worker
-KAFKA:
-  KAFKA_BOOTSTRAP_SERVERS: localhost:9092
-  KAFKA_CONSUMER_GROUP_ID: kafka-worker
-  TOPICS:
-    EXAMPLE_EVENTS: local-example-events
+DATABASE_HOST: localhost
+DATABASE_USER: root
+DATABASE_PASSWORD: example
+DATABASE_NAME: kafka-worker
+
+KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+KAFKA_CONSUMER_GROUP_ID: kafka-worker
+KAFKA_TOPICS_EXAMPLE_EVENTS: local-example-events

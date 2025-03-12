@@ -10,36 +10,7 @@ run the following to get minikube up and running
 
 ```bash
 minikube start
-
-# note: pick the one below thats works in your terminal
-minikube -p minikube docker-env | source
-eval (minikube -p minikube docker-env)
 ```
-
-create the cluster with
-
-```bash
-chmod +x ./start-cluster.sh
-./start-cluster.sh
-```
-
-and to stop just run:
-
-```bash
-minikube stop
-```
-
-## Reseting everything
-
-to delete all pods/services/statefulsets run:
-
-```bash
-kubectl delete all --all --all-namespaces
-```
-
-this means that every data you have saved will be lost
-
-## Terminals
 
 for every new terminal you create execute the following
 
@@ -49,32 +20,55 @@ minikube -p minikube docker-env | source
 eval (minikube -p minikube docker-env)
 ```
 
+create the infra you need with
+
+```bash
+helm install kafka bitnami/kafka -n dev -f apps/infra/kafka/values.yaml
+helm install kafka-ui kafka-ui/kafka-ui -n dev -f apps/infra/kafka-ui/values.yaml
+helm install postgresql bitnami/postgresql -n dev -f apps/infra/postgresql/values.yaml
+```
+
+simulate a pipeline with the following commands
+
+```bash
+# if your pipeline needs to run a migration, then in a terminal with minikube env vars
+kubectl port-forward -n dev service/postgresql 5432:5432
+
+# create a new fresh terminal without sourcing minikube env vars then:
+python pipeline_parser.py <app_name>
+```
+
+if the app is an API run the following to test:
+
+```bash
+kubectl port-forward -n dev deployment/<app_name>-dev <host_port>:<app_exposed_port>
+
+```
+
+if the app is a Kafka consumer, consider to open `kafka-ui`
+
+```bash
+kubectl port-forward -n dev deployment/kafka-ui <host_port>:8080
+```
+
+to stop a specific app execute:
+
+```bash
+helm uninstall <app_name> -n dev
+```
+
+and to stop minikube and all services just run:
+
+```bash
+minikube stop
+```
+
 ## Logs
 
-to see the logs for a specific pod do the following:
+you can install [k9s](https://k9scli.io/) which is way more easy or use:
 
 ```bash
-kubectl get pod
-kubectl logs -f <POD_NAME>
-```
-
-## Port Forwarding
-
-port forward makes possible to interact with pods since they have an internal ip
-
-```bash
-kubectl get pod
-kubectl port-forward <POD_NAME> <HOST_PORT_EXPOSED>:<POD_PORT>
-```
-
-## Secrets
-
-use the following snipper to inspect the value of some secret
-
-```bash
-kubectl get secret
-
-kubectl get secret <SECRET_NAME> -o go-template='{{range $k,$v := .data}}{{printf "%s: " $k}}{{if not $v}}{{$v}}{{else}}{{$v | base64decode}}{{end}}{{"\n"}}{{end}}'
+kubectl logs -n dev -f deployment/<app_name>-dev
 ```
 
 ## Alias

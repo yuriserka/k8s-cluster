@@ -11,13 +11,14 @@ metadata:
     app.kubernetes.io/version: "latest"
     app.kubernetes.io/managed-by: Helm
 data:
-  DB__HOST: "postgresql"
-  DB__NAME: "kafka-worker"
-  DB__PASSWORD: "example"
-  DB__USER: "root"
-  KAFKA__KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
-  KAFKA__KAFKA_CONSUMER_GROUP_ID: "kafka-worker"
-  KAFKA__TOPICS__EXAMPLE_EVENTS: "example-topic"
+  DATABASE_HOST: "postgresql"
+  DATABASE_NAME: "kafka-worker"
+  DATABASE_PASSWORD: "example"
+  DATABASE_PORT: "5432"
+  DATABASE_USER: "root"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+  KAFKA_CONSUMER_GROUP_ID: "kafka-worker"
+  KAFKA_TOPICS_EXAMPLE_EVENTS: "example-topic"
 ---
 # Source: dev/templates/service.yaml
 apiVersion: v1
@@ -61,7 +62,7 @@ spec:
   template:
     metadata:
       annotations:
-        rollme: "dIkqj"
+        rollme: "17Lzq"
       labels:
         helm.sh/chart: dev-0.1.0
         app.kubernetes.io/name: dev
@@ -71,7 +72,7 @@ spec:
     spec:
       containers:
         - name: kafka-worker-example-topic-consumer-dev
-          image: "kafka-worker-example-topic-consumer-dev:latest"
+          image: "kafka-worker-example-topic-consumer-dev:2025.03.12.01.01.54"
           imagePullPolicy: Never
           command:
             - python

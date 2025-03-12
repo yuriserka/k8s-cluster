@@ -5,8 +5,6 @@ import psycopg2
 from kafkaworker.config import config
 
 
-db_config = config.get('DB')
-
 SUCCESS = 0
 ERROR = 1
 
@@ -20,11 +18,11 @@ def check_db_connection():
     health_check = ERROR
     try:
         connection = psycopg2.connect(
-            host=db_config.get('HOST'),
-            port="5432",
-            user=db_config.get('USER'),
-            password=db_config.get('PASSWORD'),
-            database=db_config.get('NAME')
+            host=config.get('DATABASE_HOST'),
+            port=config.get('DATABASE_PORT'),
+            user=config.get('DATABASE_USER'),
+            password=config.get('DATABASE_PASSWORD'),
+            database=config.get('DATABASE_NAME')
         )
         with connection.cursor() as cursor:
             cursor.execute('SELECT version();')

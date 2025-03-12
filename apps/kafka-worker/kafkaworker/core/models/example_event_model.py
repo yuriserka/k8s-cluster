@@ -5,7 +5,8 @@ class ExampleEventModel(models.Model):
     class Meta:
         db_table = 'example_events'
 
-    event_id = models.CharField(max_length=36, primary_key=True)
+    id = models.AutoField(auto_created=True, primary_key=True, serialize=False)
+    event_id = models.CharField(max_length=36)
     event_type = models.CharField(max_length=255)
     user_id = models.CharField(max_length=36, db_index=True)
     username = models.CharField(max_length=255)

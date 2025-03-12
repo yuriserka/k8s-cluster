@@ -15,12 +15,11 @@ from kafkaworker.core.kafka.consumer.abstract_kafka_consumer import (
 )
 
 logger = logging .getLogger(__name__)
-kafka_config = config["KAFKA"]
 
 
 class ExampleEventKafkaConsumer(AbstractKafkaConsumer[ExampleEventPayloadDTO]):
     def __init__(self, example_events_service: ExampleEventsService):
-        super().__init__(topic=kafka_config.get("TOPICS").get("EXAMPLE_EVENTS"))
+        super().__init__(topic=config.get("KAFKA_TOPICS_EXAMPLE_EVENTS"))
         self.example_events_service = example_events_service
 
     async def parse_message(self, message: dict) -> ExampleEventPayloadDTO:

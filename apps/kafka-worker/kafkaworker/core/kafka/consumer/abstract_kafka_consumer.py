@@ -9,7 +9,6 @@ from kafkaworker.core.utils.exponential_backoff import get_expo_backoff
 
 from abc import ABC, abstractmethod
 logger = logging .getLogger(__name__)
-kafka_config = config["KAFKA"]
 
 T = TypeVar("T")
 
@@ -33,8 +32,8 @@ class AbstractKafkaConsumer(ABC, Generic[T]):
     def __init__(self, topic: str):
         self.topic = topic
         self.consumer = KafkaConsumer(
-            bootstrap_servers=kafka_config.get("KAFKA_BOOTSTRAP_SERVERS"),
-            group_id=kafka_config.get("KAFKA_CONSUMER_GROUP_ID"),
+            bootstrap_servers=config.get("KAFKA_BOOTSTRAP_SERVERS"),
+            group_id=config.get("KAFKA_CONSUMER_GROUP_ID"),
             value_deserializer=lambda msg: json.loads(msg.decode("utf-8")),
             enable_auto_commit=False,
         )

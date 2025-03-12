@@ -7,7 +7,7 @@ replicaCount: 1
 image:
   repository: ""
   pullPolicy: Never
-  tag: "latest"
+  tag: ""
 
 container:
   cmd: null
