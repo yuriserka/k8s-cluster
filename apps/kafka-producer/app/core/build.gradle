@@ -1,3 +1,16 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath("org.flywaydb:flyway-database-postgresql:${flywayVersion}")
+    }
+}
+
+plugins {
+    id "org.flywaydb.flyway" version "${flywayVersion}"
+}
+
 jar {
 	enabled = true
 }
@@ -8,4 +21,14 @@ bootJar {
 
 dependencies {
 	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+	implementation "org.springframework.boot:spring-boot-starter-data-jpa:${springBootVersion}"
+
+	implementation "org.hibernate.orm:hibernate-envers:${hibernateVersion}"
+    implementation "org.hibernate.orm:hibernate-core:${hibernateVersion}"
+	implementation "io.hypersistence:hypersistence-utils-hibernate-63:${hypersistenceUtilsVersion}"
+
+	implementation "org.flywaydb:flyway-database-postgresql:${flywayVersion}"
+	runtimeOnly  "org.postgresql:postgresql"
+
+	testImplementation "org.testcontainers:postgresql"
 }

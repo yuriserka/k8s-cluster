@@ -3,3 +3,11 @@ spring.http.gateways:
     openmeteo.forecast.url: http://open-meteo-forecast-api
 
 spring.kafka.bootstrap-servers: localhost:9092
+
+spring.jpa:
+    hibernate.ddl-auto: create
+
+spring.datasource:
+    url: jdbc:postgresql://${DATABASE_HOST}:${DATABASE_PORT}/${DATABASE_NAME}
+    username: ${DATABASE_USER}
+    password: ${DATABASE_PASSWORD}
