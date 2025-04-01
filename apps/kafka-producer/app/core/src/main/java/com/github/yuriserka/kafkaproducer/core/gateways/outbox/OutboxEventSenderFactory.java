@@ -7,18 +7,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.yuriserka.kafkaproducer.core.entities.outboxevent.OutboxEvent;
 import com.github.yuriserka.kafkaproducer.core.gateways.outbox.kafka.KafkaBrokerEventSender;
 
-import lombok.RequiredArgsConstructor;
-
 @Component
-@RequiredArgsConstructor
 public class OutboxEventSenderFactory {
-    private final ObjectMapper objectMapper;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private KafkaBrokerEventSender kafkaBrokerEventSender;
+
+    public OutboxEventSenderFactory(
+        final ObjectMapper objectMapper,
+        final KafkaTemplate<String, String> kafkaTemplate
+    ) {
+        this.kafkaBrokerEventSender = new KafkaBrokerEventSender(objectMapper, kafkaTemplate);
+    }
 
     public MessageBrokerEventSender create(final OutboxEvent outboxEvent) {
         final var broker = outboxEvent.getMessageBroker();
         return switch (broker) {
-            case KAFKA -> new KafkaBrokerEventSender(objectMapper, kafkaTemplate);
+            case KAFKA -> kafkaBrokerEventSender;
             default -> throw new IllegalArgumentException(String.format("Broker %s is not supported", broker));
         };
     }

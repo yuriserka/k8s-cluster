@@ -12,5 +12,6 @@ public interface OutboxEventMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "processed", constant = "false")
+    @Mapping(target = "destination", expression = "java(dto.eventType().getDestination())")
     OutboxEvent toEntity(OutboxEventDto dto);
 }

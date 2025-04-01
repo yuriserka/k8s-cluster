@@ -1,28 +1,33 @@
 package com.github.yuriserka.kafkaproducer.core.gateways.outbox.builders;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.yuriserka.kafkaproducer.core.gateways.database.outboxevent.dtos.OutboxEventDto;
-import com.github.yuriserka.kafkaproducer.core.gateways.outbox.EventTypes;
+import org.springframework.stereotype.Component;
 
-public class SendMessageToUserEventBuilder extends OutboxEventBuilder {
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.yuriserka.kafkaproducer.core.gateways.outbox.EventTypes;
+import com.github.yuriserka.kafkaproducer.core.gateways.outbox.dtos.SendMessageToUserPayloadDto;
+
+@Component
+public class SendMessageToUserEventBuilder extends OutboxEventBuilder<SendMessageToUserPayloadDto> {
     static final EventTypes EVENT_TYPE = EventTypes.SEND_MESSAGE_TO_USER;
 
     public SendMessageToUserEventBuilder(final ObjectMapper objectMapper) {
         super(objectMapper);
     }
 
-    public OutboxEventDto build(Object... args) {
-        final var payload = createPayload(args);
-        return OutboxEventDto.kafkaEvent(payload.get("userId").asText(), EVENT_TYPE, payload);
-    }
-
-    private JsonNode createPayload(Object... args) {
+    @Override
+    protected SendMessageToUserPayloadDto createPayload(final Object... args) {
         final var userId = (String) args[0];
         final var username = (String) args[1];
-        final var payload = objectMapper.createObjectNode();
-        payload.set("userId", objectMapper.valueToTree(userId));
-        payload.set("username", objectMapper.valueToTree(username));
-        return payload;
+        return new SendMessageToUserPayloadDto(userId, username);
+    }
+
+    @Override
+    protected EventTypes getEventType() {
+        return EVENT_TYPE;
+    }
+
+    @Override
+    protected String getAggregateId(final SendMessageToUserPayloadDto payload) {
+        return payload.userId();
     }
 }

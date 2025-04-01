@@ -2,6 +2,10 @@ package com.github.yuriserka.kafkaproducer.core.entities.outboxevent;
 
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import com.fasterxml.jackson.databind.JsonNode;
 
 import jakarta.persistence.Column;
@@ -36,12 +40,14 @@ public class OutboxEvent {
 
     private String destination;
 
-    @Column(columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "JSONB")    
     private JsonNode payload;
 
     private Boolean processed;
 
     @Column(name = "created_at")
+    @CreationTimestamp
     private LocalDateTime createdAt;
 
     public void markAsProcessed() {

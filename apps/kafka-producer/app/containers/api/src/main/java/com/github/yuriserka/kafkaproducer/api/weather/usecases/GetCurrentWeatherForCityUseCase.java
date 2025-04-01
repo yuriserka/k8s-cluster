@@ -33,7 +33,13 @@ public class GetCurrentWeatherForCityUseCase {
 
         log.info("Weather for city {}: {}", city, currentWeather);
 
-        outboxEventDatabaseAdapter.saveFromEventType(EventTypes.SEND_WEATHER_REPORT, currentWeather);
+        outboxEventDatabaseAdapter.saveFromEventType(
+            EventTypes.SEND_WEATHER_REPORT,
+            currentWeather.address(),
+            currentWeather.temperature(),
+            currentWeather.windSpeed(),
+            currentWeather.windDirection()
+        );
         return currentWeather;
     }
 }
