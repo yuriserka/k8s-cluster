@@ -23,5 +23,7 @@ class ExampleTopicHandlerFactory:
             EventTypes.SEND_WEATHER_REPORT: send_weather_report_handler,
         }
 
-    def handle_event(self, key: Optional[str], event: ExampleTopicEventDTO):
-        self.event_types[event.event_type].handle(key, event)
+    async def handle_event(self, key: Optional[str], event: ExampleTopicEventDTO):
+        if event.event_type not in self.event_types:
+            raise ValueError(f"Unknown event type: {event.event_type}")
+        await self.event_types[event.event_type].handle(key, event)

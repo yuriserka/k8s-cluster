@@ -1,3 +1,5 @@
+# flake8: noqa
+
 from kafkaworker.core.factories.example_topic.handlers.send_message_to_user_handler import (
     SendMessageToUserHandler,
 )

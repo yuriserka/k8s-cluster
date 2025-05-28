@@ -2,7 +2,7 @@ from asyncio import sleep, gather
 import json
 import logging
 from typing import Generic, NamedTuple, Optional, TypeVar
-from kafka import KafkaConsumer, TopicPartition, OffsetAndMetadata
+from kafka import KafkaConsumer, TopicPartition
 from kafkaworker.config import config
 from kafkaworker.core.utils.exponential_backoff import get_expo_backoff
 
@@ -77,14 +77,7 @@ class AbstractKafkaConsumer(ABC, Generic[T]):
                 f"Max retries reached for message from topic {topic}:{partition}: {parsed_message}",
                 extra={"event_message": parsed_message, "topic": topic}
             )
-            self.consumer.commit(
-                offsets={
-                    topic_partition: OffsetAndMetadata(
-                        offset=retry_message.offset,
-                        metadata="unable to process"
-                    )
-                }
-            )
+            self.consumer.commit()
             return
 
         try:
@@ -97,14 +90,7 @@ class AbstractKafkaConsumer(ABC, Generic[T]):
                 )
             )
             await self.handle_message(retry_message.key, parsed_message)
-            self.consumer.commit(
-                offsets={
-                    topic_partition: OffsetAndMetadata(
-                        offset=retry_message.offset,
-                        metadata=f"processed after {retry_message.retry_count} retries"
-                    )
-                }
-            )
+            self.consumer.commit()
         except Exception:
             self.buffer = {
                 **self.buffer,
@@ -135,14 +121,7 @@ class AbstractKafkaConsumer(ABC, Generic[T]):
                 f"Consuming message from topic {topic}:{partition} with key {message.key}: {parsed_message}"
             )
             await self.handle_message(message.key, parsed_message)
-            self.consumer.commit(
-                offsets={
-                    topic_partition: OffsetAndMetadata(
-                        offset=message.offset,
-                        metadata="succesfully processed message"
-                    )
-                }
-            )
+            self.consumer.commit()
         except Exception as e:
             logger.error(
                 f"Error while consuming message from topic {topic}:{partition} {e}",
@@ -162,7 +141,7 @@ class AbstractKafkaConsumer(ABC, Generic[T]):
                 ]
             }
 
-    async def _parse_message(self, message, topic: str, partition: int) -> T:
+    async def _parse_message(self, message, topic: str, partition: int) -> Optional[T]:
         try:
             return await self.parse_message(message.value)
         except Exception as e:

@@ -59,7 +59,7 @@ spec:
   template:
     metadata:
       annotations:
-        rollme: "kII65"
+        rollme: "5L0pt"
       labels:
         helm.sh/chart: dev-0.1.0
         app.kubernetes.io/name: dev
@@ -69,7 +69,7 @@ spec:
     spec:
       containers:
         - name: kafka-worker-api-dev
-          image: "kafka-worker-api-dev:2025.03.12.01.01.54"
+          image: "kafka-worker-api-dev:2025.05.27.23.48.10"
           imagePullPolicy: Never
           command:
             - python

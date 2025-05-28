@@ -1,14 +1,9 @@
-from random import randint
 import logging
 from typing import Optional
 from kafkaworker.config import config
 
 from kafkaworker.core.models.example_event.payloads.kafka_message import (
     ExampleTopicEventDTO,
-    ExampleEventDataDTO
-)
-from kafkaworker.core.services.example_events_service import (
-    ExampleEventsService
 )
 from kafkaworker.core.kafka.consumer.abstract_kafka_consumer import (
     AbstractKafkaConsumer
@@ -31,4 +26,12 @@ class ExampleEventKafkaConsumer(AbstractKafkaConsumer[ExampleTopicEventDTO]):
         return self.payload_factory.parse_message_to_dto(message)
 
     async def handle_message(self, key: Optional[str], message: ExampleTopicEventDTO):
-        self.handler_factory.handle_event(key, message)
+        try:
+            await self.handler_factory.handle_event(key, message)
+        except Exception as e:
+            logger.error(
+                f"Error while handling message with key {key}: {e}",
+                exc_info=True,
+                extra={"event_message": message, "key": key}
+            )
+            raise e

@@ -1,3 +1,5 @@
+# flake8: noqa
+
 from kafkaworker.core.factories.example_topic.handler_factory import (
     ExampleTopicHandlerFactory,
 )

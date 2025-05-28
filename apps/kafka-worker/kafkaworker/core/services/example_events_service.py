@@ -11,9 +11,9 @@ class ExampleEventsService:
     async def save_event(self, event: ExampleTopicEventDTO[SendMessageToUserEventPayloadDTO]):
         saved_event = await ExampleEventModel.objects.acreate(
             event_id=event.event_id,
-            event_type=event.event_type,
+            event_type=event.event_type.value,
             user_id=event.payload.user_id,
-            username=event.payload.name,
+            username=event.payload.username,
         )
 
         logger.info(f"saved event: {saved_event}")
