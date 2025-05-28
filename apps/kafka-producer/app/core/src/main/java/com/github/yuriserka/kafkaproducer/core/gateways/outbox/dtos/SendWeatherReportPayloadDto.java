@@ -8,8 +8,8 @@ public record SendWeatherReportPayloadDto(
     @JsonProperty("report_id") String reportId,
     String address,
     String temperature,
-    String windSpeed,
-    String windDirection,
+    @JsonProperty("wind_speed") String windSpeed,
+    @JsonProperty("wind_direction") String windDirection,
     LocalDateTime timestamp
 ) {
 }
