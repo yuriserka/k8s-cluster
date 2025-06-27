@@ -1,6 +1,10 @@
-spring.kafka.bootstrap-servers: localhost:9092
+spring.kafka.bootstrap-servers: kafka:9092
 
 spring.datasource:
-    url: "jdbc:postgresql://localhost:5432/kafka-producer"
-    username: postgres
-    password: postgres
+    url: "jdbc:postgresql://postgres:5432/kafka-producer"
+    username: ysdcr
+    password: ysdcr
+
+spring.http.gateways:
+    geocoding.url: http://geocoding-api
+    openmeteo.forecast.url: http://open-meteo-forecast-api
