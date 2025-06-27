@@ -13,3 +13,8 @@ autoscaling:
   # maxReplicas: 2
   # targetCPUUtilizationPercentage: 80
   # targetMemoryUtilizationPercentage: 80
+
+instrumentation:
+  enabled: true
+  javaAgent:
+    version: 2.15.0

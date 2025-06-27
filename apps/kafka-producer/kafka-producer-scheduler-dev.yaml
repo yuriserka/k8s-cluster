@@ -63,7 +63,7 @@ spec:
   template:
     metadata:
       annotations:
-        rollme: "h6uZ4"
+        rollme: "1Aa9O"
       labels:
         helm.sh/chart: dev-0.1.0
         app.kubernetes.io/name: dev
@@ -73,7 +73,7 @@ spec:
     spec:
       containers:
         - name: kafka-producer-scheduler-dev
-          image: "kafka-producer-scheduler-dev:2025.05.27.23.12.46"
+          image: "kafka-producer-scheduler-dev:2025.06.27.01.34.14"
           imagePullPolicy: Never
           ports:
             - name: http
