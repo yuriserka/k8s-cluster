@@ -7,7 +7,28 @@ from dockerfile_parse import DockerfileParser
 root_dir = os.getcwd()
 
 
-def add_otel_to_java_dockerfile(dockerfile_path: str, java_agent_version: str, repository: str, enabled: bool) -> str:
+def read_env_file(env_file: str):
+    if not os.path.isfile(env_file):
+        raise FileNotFoundError(f'Environment file {env_file} does not exist.')
+
+    all_secrets = {}
+    with open(env_file) as secrets_file:
+        lines = secrets_file.readlines()
+        for line in lines:
+            key, value = line.split('=', maxsplit=1)
+            all_secrets[f"{key.upper()}"] = value.strip()
+
+    return all_secrets
+
+
+def add_otel_to_java_dockerfile(
+    dockerfile_path: str,
+    java_agent_version: str,
+    repository: str,
+    enabled: bool,
+    namespace: str,
+    grafana_secrets: dict
+) -> str:
     updated_dockerfile_path = dockerfile_path.replace(
         'Dockerfile',
         'Dockerfile.instrumented'
@@ -25,9 +46,10 @@ def add_otel_to_java_dockerfile(dockerfile_path: str, java_agent_version: str, r
         dfp.add_lines_at(
             f'CMD {dfp.cmd}\n',
             f'ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v{java_agent_version}/opentelemetry-javaagent.jar /app/opentelemetry-javaagent.jar\n'
-            f'ENV OTEL_SERVICE_NAME="{repository}"\n'
-            f'ENV OTEL_EXPORTER_OTLP_ENDPOINT="http://otel-collector:4318"\n'
-            f'ENV OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"\n'
+            f'ENV OTEL_RESOURCE_ATTRIBUTES="service.name={repository},service.namespace={namespace},deployment.environment={namespace}"\n'
+            f'ENV OTEL_EXPORTER_OTLP_ENDPOINT={grafana_secrets.get("OTEL_EXPORTER_OTLP_ENDPOINT")}\n'
+            f'ENV OTEL_EXPORTER_OTLP_PROTOCOL={grafana_secrets.get("OTEL_EXPORTER_OTLP_PROTOCOL")}\n'
+            f'ENV OTEL_EXPORTER_OTLP_HEADERS={grafana_secrets.get("OTEL_EXPORTER_OTLP_HEADERS")}\n'
             f'ENV OTEL_JAVAAGENT_ENABLED="{json.dumps(enabled)}"\n',
             after=False,
         )
@@ -48,6 +70,7 @@ def handle_instrumentation(repository: str, namespace: str, dockerfile_path: str
     os.chdir(root_dir)
     with open(f'./resources/{repository}/{namespace}.yaml') as resources_file:
         resources = yaml.safe_load(resources_file)
+        grafana_secrets = read_env_file(f'./resources/vault/_admin/grafana/{namespace}/.env')
 
         instrumentation = resources.get('instrumentation', {})
         is_enabled = instrumentation.get('enabled', False)
@@ -60,7 +83,9 @@ def handle_instrumentation(repository: str, namespace: str, dockerfile_path: str
                 dockerfile_path,
                 java_agent_version,
                 repository,
-                is_enabled
+                is_enabled,
+                namespace,
+                grafana_secrets
             )
             os.system('rm -f Dockerfile')
 

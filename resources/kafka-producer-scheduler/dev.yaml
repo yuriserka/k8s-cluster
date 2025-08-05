@@ -16,6 +16,6 @@ autoscaling:
 
 instrumentation:
   otel:
-    enabled: false
+    enabled: true
     javaAgent:
       version: 2.15.0
