@@ -12,6 +12,10 @@ env:
   KAFKA_BOOTSTRAP_SERVERS: kafka:9092
   KAFKA_CONSUMER_GROUP_ID: kafka-worker
   KAFKA_TOPICS_EXAMPLE_EVENTS: example-topic
+  AWS_ENDPOINT_URL: http://localstack:4566
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
+  AWS_DEFAULT_REGION: us-east-1
 
 # livenessProbeCmd:
 #   - ./worker_health_check.py

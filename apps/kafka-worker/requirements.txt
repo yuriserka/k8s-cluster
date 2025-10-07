@@ -4,3 +4,6 @@ pconf
 kafka-python
 uvicorn
 gunicorn
+aiohttp
+aioboto3
+boto3

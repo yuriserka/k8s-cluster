@@ -1,0 +1,59 @@
+services:
+  api:
+    image: kafka-worker-api-local:latest
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    environment:
+      - DATABASE_HOST=postgres
+      - AWS_ENDPOINT_URL=http://localstack:4566
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+    command:
+      - "python"
+      - "-m"
+      - "gunicorn"
+      - "kafkaworker.asgi:application"
+      - "-k"
+      - "uvicorn.workers.UvicornWorker"
+      - "--bind"
+      - "0.0.0.0:8000"
+    deploy:
+      resources:
+        limits:
+          memory: 1gb
+    restart: always
+
+  postgres:
+    image: bitnami/postgresql:16
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/bitnami/postgresql
+    environment:
+      POSTGRESQL_USERNAME: ysdcr
+      POSTGRESQL_PASSWORD: ysdcr
+      POSTGRESQL_POSTGRES_PASSWORD: admin
+      POSTGRESQL_DATABASE: kafka-worker
+
+  localstack:
+    container_name: localstack-main
+    image: localstack/localstack
+    ports:
+      - "127.0.0.1:4566:4566"
+      - "127.0.0.1:4510-4559:4510-4559"
+    environment:
+      - DEBUG=0
+      - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN}
+    volumes:
+      - ./volume:/var/lib/localstack
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+volumes:
+  postgres_data:
+    driver: local
