@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 import logging
 from typing import AsyncIterator
 import aioboto3
+from boto3.s3.transfer import TransferConfig
 import gc
 import time
 
@@ -17,6 +18,26 @@ class S3Adapter:
     self.session: aioboto3.Session = None
     self.connection_expires_at = None
     self.s3_multipart_upload_service = s3_multipart_upload_service
+
+  async def upload_file_object(self, file_content, key: str, bucket_name: str) -> str:
+    logger.info(f"Uploading file {key} to bucket {bucket_name}")
+    try:
+      async with self._get_s3_client() as s3:
+        await s3.upload_fileobj(
+          file_content,
+          bucket_name,
+          key,
+          Config=TransferConfig(
+            multipart_threshold=10 * 1024 * 1024,
+            max_concurrency=2
+          )
+        )
+        logger.info(f"File {key} uploaded to bucket {bucket_name}")
+        return f"s3://{bucket_name}/{key}"
+    except Exception as e:
+      logger.error(f"Error uploading file {key} to bucket {bucket_name}: {e}")
+      raise
+
 
   async def upload_file(
     self,

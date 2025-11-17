@@ -16,10 +16,18 @@ class MediaProcessingService:
     self.file_downloader_service = file_downloader_service
     self.s3_adapter = s3_adapter
 
+  async def process_media_content(self, file_url: str, request_id: str):
+    now = datetime.now()
+    file_name = f"{request_id}-media-{now.strftime('%Y-%m-%d-%H-%M-%S')}.jpeg"
+    file_content = await self.file_downloader_service.download_file_content(file_url)
+    url = await self.s3_adapter.upload_file_object(file_content, file_name, "media")
+    logger.info(f"[MediaProcessingService] file {file_name} uploaded to {url} with request id {request_id}")
+    return url
+
   async def process_media(self, file_url: str, request_id: str):
     now = datetime.now()
-    file_stream, file_extension = await self.file_downloader_service.download_file(file_url)
-    file_name = f"{request_id}-media-{now.strftime('%Y-%m-%d-%H-%M-%S')}.{file_extension}"
+    file_stream = await self.file_downloader_service.download_file(file_url)
+    file_name = f"{request_id}-media-{now.strftime('%Y-%m-%d-%H-%M-%S')}.jpeg"
     url = await self.s3_adapter.upload_file(file_stream, file_name, "media")
     logger.info(f"[MediaProcessingService] file {file_name} uploaded to {url} with request id {request_id}")
     return url
