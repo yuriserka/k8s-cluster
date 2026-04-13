@@ -35,7 +35,7 @@ class FileDownloaderService:
         logger.info(f"[FileDownloaderService] Closing response for {file_url}")
         response.close()
 
-      return generator()
+    return generator()
 
   async def _get_session(self):
     if (
