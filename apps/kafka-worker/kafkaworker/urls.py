@@ -16,8 +16,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from kafkaworker.views.hello_world import hello_world_view
-from kafkaworker.views.fetch_image import fetch_image_view
+from kafkaworker.containers.api.views.hello_world import hello_world_view
+from kafkaworker.containers.api.views.fetch_image import fetch_image_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),

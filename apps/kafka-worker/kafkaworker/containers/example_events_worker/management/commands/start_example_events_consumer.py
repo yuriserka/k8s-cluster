@@ -2,7 +2,7 @@ import asyncio
 import logging
 from django.core.management.base import BaseCommand
 
-from kafkaworker.example_events_worker.example_events_consumer import ExampleEventKafkaConsumer
+from kafkaworker.containers.example_events_worker.example_events_consumer import ExampleEventKafkaConsumer
 
 logger = logging.getLogger(__name__)
 
