@@ -4,7 +4,8 @@ import yaml
 import os
 from datetime import datetime
 
-root_dir = os.getcwd()
+from repo_paths import REPO_ROOT, SCRIPT_DIR, resolve_path
+
 pipeline_tag = datetime.today().strftime('%Y.%m.%d.%H.%M.%S')
 
 
@@ -53,7 +54,7 @@ def finish_pipeline(exit_code: int, tempfolder: str, running_services: list):
     for service_id in running_services:
         execute_cli_command(f'docker rm -f -v {service_id}')
 
-    os.chdir(root_dir)
+    os.chdir(SCRIPT_DIR)
     execute_cli_command(f'rm -r {tempfolder}')
     exit(exit_code)
 
@@ -64,7 +65,12 @@ def handle_service(service_name: str, repository: str, args: ServiceArgs, temp_f
     image_env_vars = ' '.join(
         [f'-e {key}={value}' for key, value in args.image_env_vars.items()],
     )
-    write_secrets_to_file(args.env_vars, args.output_file)
+    credentials_path = os.path.join(
+        temp_folder_path, args.output_file.lstrip('./')
+    )
+    write_secrets_to_file(args.env_vars, credentials_path)
+
+    execute_cli_command(f'docker rm -f {container_id} >/dev/null 2>&1')
 
     return (
         container_id,
@@ -77,23 +83,26 @@ def handle_service(service_name: str, repository: str, args: ServiceArgs, temp_f
 
 def handle_install_step(args: InstallStepArgs, temp_folder_path: str):
     print('Installing app with args:', args)
-    os.chdir(root_dir)
+    install_script = os.path.join(SCRIPT_DIR, 'install_app.py')
     return execute_cli_command(
-        f'python install_app.py -r {args.repo} -a {args.application} '
+        f'python {install_script} -r {args.repo} -a {args.application} '
         f'-e {args.params_file} -p {temp_folder_path} -n {args.env} -t {pipeline_tag}'
     )
 
 
 def handle_publish_step(args: PublishStepArgs, temp_folder_path: str):
     print('Publishing app with args:', args)
-    os.chdir(root_dir)
+    publish_script = os.path.join(SCRIPT_DIR, 'publish_app.py')
     return execute_cli_command(
-        f'python publish_app.py -r {args.repo} -d {args.dockerfile} '
+        f'python {publish_script} -r {args.repo} -d {args.dockerfile} '
         f'-p {temp_folder_path} -n {args.env} -k -t {pipeline_tag}'
     )
 
 
 def write_secrets_to_file(secrets: dict, output_file: str):
+    output_dir = os.path.dirname(output_file)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
     with open(output_file, 'w') as file:
         for key, value in secrets.items():
             file.write(f'{key}={value}\n')
@@ -103,21 +112,23 @@ def handle_credentials_step(args: CredentialsStepArgs, temp_folder_path: str):
     print('Getting credentials with args:', args)
     resource, target, namespace = args.path.split(':')
     all_secrets = {}
-    os.chdir(root_dir)
-    resource_directories = os.listdir(f'resources/vault/{target}')
-    for resource in resource_directories:
-        env_dir = f'resources/vault/{target}/{resource}/{namespace}'
+    vault_root = os.path.join(REPO_ROOT, 'resources', 'vault', target)
+    resource_directories = os.listdir(vault_root)
+    for resource_name in resource_directories:
+        env_dir = os.path.join(vault_root, resource_name, namespace)
         if not os.path.isdir(env_dir):
             continue
 
-        with open(f'{env_dir}/.env') as secrets_file:
+        with open(os.path.join(env_dir, '.env')) as secrets_file:
             lines = secrets_file.readlines()
             for line in lines:
                 key, value = line.split('=')
-                all_secrets[f"{resource.upper()}_{key.upper()}"] = value.strip()
+                all_secrets[f"{resource_name.upper()}_{key.upper()}"] = value.strip()
 
-    write_secrets_to_file(
-        all_secrets, f'{temp_folder_path}/{args.output_file}')
+    credentials_path = os.path.join(
+        temp_folder_path, args.output_file.lstrip('./')
+    )
+    write_secrets_to_file(all_secrets, credentials_path)
 
     return 0
 
@@ -148,11 +159,13 @@ def read_file(file_path: str):
 def main(repository: str):
     print('echo "Pipeline started"')
 
-    tempfolder = f'tmp-{repository}-pipeline'
+    tempfolder = os.path.join(SCRIPT_DIR, f'tmp-{repository}-pipeline')
+    app_source = os.path.join(REPO_ROOT, 'apps', repository)
+    gitignore = os.path.join(app_source, '.gitignore')
     execute_cli_command(
-        f'rsync -r ./apps/{repository}/ {tempfolder}/ --exclude-from=./apps/{repository}/.gitignore'
+        f'rsync -r {app_source}/ {tempfolder}/ --exclude-from={gitignore}'
     )
-    pipe = read_file(f'{tempfolder}/.pipeline')
+    pipe = read_file(os.path.join(tempfolder, '.pipeline'))
     os.chdir(tempfolder)
 
     services = pipe.get('services', {})
@@ -191,4 +204,5 @@ if __name__ == '__main__':
     args = os.sys.argv[1:]
     repository = args[0]
 
+    os.chdir(SCRIPT_DIR)
     main(repository)

@@ -3,18 +3,14 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: kafka-worker-api-dev-configmap
+  name: kafka-worker-scheduler-dev-configmap
   labels:
     helm.sh/chart: dev-0.1.0
     app.kubernetes.io/name: dev
-    app.kubernetes.io/instance: kafka-worker-api
+    app.kubernetes.io/instance: kafka-worker-scheduler
     app.kubernetes.io/version: "latest"
     app.kubernetes.io/managed-by: Helm
 data:
-  AWS_ACCESS_KEY_ID: "test"
-  AWS_DEFAULT_REGION: "us-east-1"
-  AWS_ENDPOINT_URL: "http://localstack:4566"
-  AWS_SECRET_ACCESS_KEY: "test"
   DATABASE_HOST: "postgresql"
   DATABASE_NAME: "kafka-worker"
   DATABASE_PASSWORD: "example"
@@ -25,34 +21,34 @@ data:
 apiVersion: v1
 kind: Service
 metadata:
-  name: kafka-worker-api-dev-service
+  name: kafka-worker-scheduler-dev-service
   labels:
     helm.sh/chart: dev-0.1.0
     app.kubernetes.io/name: dev
-    app.kubernetes.io/instance: kafka-worker-api
+    app.kubernetes.io/instance: kafka-worker-scheduler
     app.kubernetes.io/version: "latest"
     app.kubernetes.io/managed-by: Helm
 spec:
   type: ClusterIP
   ports:
-    - port: 8000
+    - port: 8006
       targetPort: http
       protocol: TCP
       name: http
   selector:
     app.kubernetes.io/name: dev
-    app.kubernetes.io/instance: kafka-worker-api
+    app.kubernetes.io/instance: kafka-worker-scheduler
 
 ---
 # Source: dev/templates/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kafka-worker-api-dev
+  name: kafka-worker-scheduler-dev
   labels:
     helm.sh/chart: dev-0.1.0
     app.kubernetes.io/name: dev
-    app.kubernetes.io/instance: kafka-worker-api
+    app.kubernetes.io/instance: kafka-worker-scheduler
     app.kubernetes.io/version: "latest"
     app.kubernetes.io/managed-by: Helm
 spec:
@@ -60,37 +56,34 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: dev
-      app.kubernetes.io/instance: kafka-worker-api
+      app.kubernetes.io/instance: kafka-worker-scheduler
   template:
     metadata:
       annotations:
-        rollme: "VFvpj"
+        rollme: "PMGA7"
       labels:
         helm.sh/chart: dev-0.1.0
         app.kubernetes.io/name: dev
-        app.kubernetes.io/instance: kafka-worker-api
+        app.kubernetes.io/instance: kafka-worker-scheduler
         app.kubernetes.io/version: "latest"
         app.kubernetes.io/managed-by: Helm
     spec:
       containers:
-        - name: kafka-worker-api-dev
-          image: "kafka-worker-api-dev:2026.05.21.02.03.33"
+        - name: kafka-worker-scheduler-dev
+          image: "kafka-worker-scheduler-dev:2026.05.21.02.03.33"
           imagePullPolicy: Never
           command:
             - python
           args:
-            - -m
-            - gunicorn
-            - kafkaworker.asgi:application
-            - -k
-            - uvicorn.workers.UvicornWorker
+            - manage.py
+            - start_scheduler
           ports:
             - name: http
-              containerPort: 8000
+              containerPort: 8006
               protocol: TCP
           envFrom:
             - configMapRef:
-                name: kafka-worker-api-dev-configmap
+                name: kafka-worker-scheduler-dev-configmap
           livenessProbe:
             null
           readinessProbe:

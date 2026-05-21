@@ -1,10 +1,29 @@
 import os
+import shlex
 import yaml
 import json
 from dockerfile_parse import DockerfileParser
 
+from repo_paths import REPO_ROOT, resolve_path
 
-root_dir = os.getcwd()
+
+def run_docker_build(image: str, dockerfile_abs: str, build_context: str, use_minikube_docker: bool) -> int:
+    """Build from build_context using a relative Dockerfile path.
+
+    Avoids passing WSL absolute paths to minikube image build / Docker Desktop,
+    which often fails with: lstat /home/<user>: no such file or directory
+    """
+    dockerfile_rel = os.path.relpath(dockerfile_abs, build_context)
+    inner = (
+        f'cd {shlex.quote(build_context)} && '
+        f'docker build -t {shlex.quote(image)} -f {shlex.quote(dockerfile_rel)} .'
+    )
+    if use_minikube_docker:
+        inner = f'eval "$(minikube docker-env --shell bash)" && {inner}'
+    # os.system uses /bin/sh (dash); default minikube docker-env is fish ("set -gx").
+    cmd = f'bash -c {shlex.quote(inner)}'
+    print(f'Executing command: {cmd}')
+    return os.system(cmd)
 
 
 def read_env_file(env_file: str):
@@ -66,30 +85,43 @@ def add_otel_to_java_dockerfile(
     return updated_dockerfile_path
 
 
-def handle_instrumentation(repository: str, namespace: str, dockerfile_path: str, path: str) -> str:
-    os.chdir(root_dir)
-    with open(f'./resources/{repository}/{namespace}.yaml') as resources_file:
+def handle_instrumentation(
+    repository: str,
+    namespace: str,
+    dockerfile_path: str,
+    build_context: str,
+) -> str:
+    resources_path = os.path.join(
+        REPO_ROOT, 'resources', repository, f'{namespace}.yaml'
+    )
+    grafana_env_path = os.path.join(
+        REPO_ROOT, 'resources', 'vault', '_admin', 'grafana', namespace, '.env'
+    )
+
+    with open(resources_path) as resources_file:
         resources = yaml.safe_load(resources_file)
-        grafana_secrets = read_env_file(f'./resources/vault/_admin/grafana/{namespace}/.env')
+    grafana_secrets = read_env_file(grafana_env_path)
 
-        instrumentation = resources.get('instrumentation', {})
-        is_enabled = instrumentation.get('enabled', False)
+    instrumentation = resources.get('instrumentation', {})
+    is_enabled = instrumentation.get('enabled', False)
+    dockerfile_abs = os.path.join(build_context, dockerfile_path)
 
-        os.chdir(path)
-        if 'javaAgent' in instrumentation:
-            java_agent = instrumentation.get('javaAgent', {})
-            java_agent_version = java_agent.get('version', 'latest')
-            dockerfile_path = add_otel_to_java_dockerfile(
-                dockerfile_path,
-                java_agent_version,
-                repository,
-                is_enabled,
-                namespace,
-                grafana_secrets
-            )
-            os.system('rm -f Dockerfile')
+    if 'javaAgent' in instrumentation:
+        java_agent = instrumentation.get('javaAgent', {})
+        java_agent_version = java_agent.get('version', 'latest')
+        dockerfile_abs = add_otel_to_java_dockerfile(
+            dockerfile_abs,
+            java_agent_version,
+            repository,
+            is_enabled,
+            namespace,
+            grafana_secrets,
+        )
+        original_dockerfile = os.path.join(build_context, 'Dockerfile')
+        if os.path.isfile(original_dockerfile):
+            os.system(f'rm -f {original_dockerfile}')
 
-    return dockerfile_path
+    return dockerfile_abs
 
 
 def main(
@@ -102,22 +134,25 @@ def main(
 ) -> int:
     tag = tag or 'latest'
     image = f'{repository}-{namespace}:{tag}'
-    provider = 'minikube image' if intra_cluster else 'docker'
-    new_dockerfile_path = handle_instrumentation(
-        repository, namespace, dockerfile_path, path
+    build_context = resolve_path(path)
+    original_dockerfile = os.path.join(build_context, dockerfile_path)
+    dockerfile_abs = handle_instrumentation(
+        repository, namespace, dockerfile_path, build_context
     )
+    instrumented = dockerfile_abs != original_dockerfile
 
-    build_result = os.system(
-        f'{provider} build -t {image} -f {new_dockerfile_path} .'
+    build_result = run_docker_build(
+        image, dockerfile_abs, build_context, use_minikube_docker=intra_cluster
     )
     if build_result == 0:
-        if dockerfile_path != new_dockerfile_path:
-            return os.system(f'rm -f {new_dockerfile_path}')
+        if instrumented:
+            os.system(f'rm -f {dockerfile_abs}')
         return build_result
 
-    print(f'Failed to build image {image} using {provider}.')
-    if dockerfile_path != new_dockerfile_path:
-        return os.system(f'rm -f {new_dockerfile_path}')
+    target = 'minikube docker' if intra_cluster else 'local docker'
+    print(f'Failed to build image {image} using {target}.')
+    if instrumented:
+        os.system(f'rm -f {dockerfile_abs}')
 
     return build_result
 
@@ -148,12 +183,9 @@ if __name__ == '__main__':
     tag = args[args.index("-t") + 1] if "-t" in args else None
     intra_cluster = "-k" in args
 
-    os.chdir(path)
-
-    exit_code = main(repository, dockerfile_path,
-                     namespace, intra_cluster, path, tag)
-
-    os.chdir(root_dir)
+    exit_code = main(
+        repository, dockerfile_path, namespace, intra_cluster, path, tag
+    )
 
     if exit_code != 0:
         raise Exception(f'Failed to publish app with repository: {repository}')

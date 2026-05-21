@@ -1,33 +1,33 @@
 import os
 import yaml
 
-root_dir = os.getcwd()
+from repo_paths import REPO_ROOT, SCRIPT_DIR, resolve_path
 
 
 def get_values_template_for(namespace: str) -> dict:
-    with open(f'envs/{namespace}/values.yaml') as values_file:
+    values_path = os.path.join(REPO_ROOT, 'envs', namespace, 'values.yaml')
+    with open(values_path) as values_file:
         return yaml.safe_load(values_file)
 
 
 def get_declared_values_for_app(env_file: str, namespace: str, path: str) -> dict:
-    os.chdir(path)
-
-    with open(f'kube/{namespace}/{env_file}') as override_file:
-        content = yaml.safe_load(override_file)
-        os.chdir(root_dir)
-        return content
+    override_path = os.path.join(
+        resolve_path(path), 'kube', namespace, env_file
+    )
+    with open(override_path) as override_file:
+        return yaml.safe_load(override_file)
 
 
 def get_secrets_for_app(repository: str, namespace: str) -> dict:
     all_secrets = {}
-    os.chdir(root_dir)
-    resource_directories = os.listdir(f'resources/vault/{repository}')
+    vault_root = os.path.join(REPO_ROOT, 'resources', 'vault', repository)
+    resource_directories = os.listdir(vault_root)
     for resource in resource_directories:
-        env_dir = f'resources/vault/{repository}/{resource}/{namespace}'
+        env_dir = os.path.join(vault_root, resource, namespace)
         if not os.path.isdir(env_dir):
             continue
 
-        with open(f'{env_dir}/.env') as secrets_file:
+        with open(os.path.join(env_dir, '.env')) as secrets_file:
             lines = secrets_file.readlines()
             for line in lines:
                 key, value = line.split('=')
@@ -37,13 +37,23 @@ def get_secrets_for_app(repository: str, namespace: str) -> dict:
 
 
 def get_resources_for(app_name: str, namespace: str) -> dict:
-    with open(f'resources/{app_name}/{namespace}.yaml') as resources_file:
+    resources_path = os.path.join(
+        REPO_ROOT, 'resources', app_name, f'{namespace}.yaml'
+    )
+    with open(resources_path) as resources_file:
         return yaml.safe_load(resources_file)
 
 
 def execute_helm_commands(app_name: str, repository: str, namespace: str, values: dict) -> int:
-    generated_file_name = 'values.yaml'
-    with open(generated_file_name, 'w') as result:
+    chart_path = os.path.join(REPO_ROOT, 'envs', namespace)
+    rendered_manifest = os.path.join(
+        REPO_ROOT, 'apps', repository, f'{app_name}-{namespace}.yaml'
+    )
+    values_file = os.path.join(SCRIPT_DIR, 'values.yaml')
+
+    os.makedirs(os.path.dirname(rendered_manifest), exist_ok=True)
+
+    with open(values_file, 'w') as result:
         yaml.safe_dump(
             values,
             result,
@@ -53,15 +63,15 @@ def execute_helm_commands(app_name: str, repository: str, namespace: str, values
         )
 
     os.system(
-        f'helm template {app_name} ../envs/{namespace} -n {namespace} -f {generated_file_name} >'
-        f' ../apps/{repository}/{app_name}-{namespace}.yaml'
+        f'helm template {app_name} {chart_path} -n {namespace} -f {values_file} >'
+        f' {rendered_manifest}'
     )
     app_installed = os.system(
-        f'helm install {app_name} ../envs/{namespace} -n {namespace} -f {generated_file_name}'
+        f'helm install {app_name} {chart_path} -n {namespace} -f {values_file}'
     )
     if app_installed != 0:
         app_installed = os.system(
-            f'helm upgrade {app_name} ../envs/{namespace} -n {namespace} -f {generated_file_name}'
+            f'helm upgrade {app_name} {chart_path} -n {namespace} -f {values_file}'
         )
 
     return app_installed
@@ -181,8 +191,6 @@ def install_app(
         else:
             values_ref[key] = {**values_ref[key], **value}
 
-    os.chdir(path)
-
     return execute_helm_commands(application, repository, namespace, values_ref)
 
 
@@ -225,8 +233,6 @@ if __name__ == '__main__':
         path,
         tag
     )
-
-    os.chdir(root_dir)
 
     if exit_code != 0:
         raise Exception(

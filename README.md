@@ -23,6 +23,9 @@ eval (minikube -p minikube docker-env)
 create the infra you need with
 
 ```bash
+helm repo add bitnami https://charts.bitnami.com/bitnami
+minikube kubectl -- create namespace dev
+
 helm install kafka bitnami/kafka -n dev -f apps/infra/kafka/values.yaml
 helm install kafka-ui kafka-ui/kafka-ui -n dev -f apps/infra/kafka-ui/values.yaml
 helm install postgresql bitnami/postgresql -n dev -f apps/infra/postgresql/values.yaml
@@ -34,7 +37,10 @@ simulate a pipeline with the following commands
 # if your pipeline needs to run a migration, then in a terminal with minikube env vars
 kubectl port-forward -n dev service/postgresql 5432:5432
 
-# create a new fresh terminal without sourcing minikube env vars then:
+# from the scripts/ directory (see scripts/README.md):
+cd scripts
+# create_database.py creates the DB and grants the app user owner + public schema rights (required on PG15+ for migrations)
+python create_database.py -n dev -r <app_name>
 python pipeline_parser.py <app_name>
 ```
 

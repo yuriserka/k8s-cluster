@@ -12,55 +12,46 @@ helm install postgresql bitnami/postgresql -n dev -f infra/postgresql/values.yam
 minikube kubectl -- port-forward -n dev postgresql-0 5432:5432
 ```
 
-## Adding permissions to created user
+## Creating a database and granting permissions (PostgreSQL 15+)
 
-### Connect as admin user (postgres) with the following credentials
+On PostgreSQL 15+, the `public` schema no longer grants `CREATE` to all users. Django (and other apps) need the **application user** to own the database and `public` schema.
 
+Use the repo script from the project root (creates the DB if missing, then always applies owner/grants — safe to re-run on an existing database):
+
+```bash
+python create_database.py -n dev -r <app_name>
 ```
-username: postgres
-password: admin
-```
 
-then execute the following SQL queries to update custom user
+Example for `kafka-worker`: creates database `kafka-worker` owned by `root` (from `resources/vault/kafka-worker/database/dev/.env`).
+
+### Manual fix for an existing database
+
+If the database was created without owner/grants, connect as admin (`postgres` / `admin` from `resources/vault/_admin/database/dev/.env`) and run:
 
 ```sql
-SELECT usename AS role_name,
- CASE
-  WHEN usesuper AND usecreatedb THEN
-    CAST('superuser, create database' AS pg_catalog.text)
-  WHEN usesuper THEN
-    CAST('superuser' AS pg_catalog.text)
-  WHEN usecreatedb THEN
-    CAST('create database' AS pg_catalog.text)
-  ELSE
-    CAST('' AS pg_catalog.text)
- END role_attributes
-FROM pg_catalog.pg_user
-ORDER BY role_name desc;
-
-alter role <OTHER_USER_DIFF_FROM_POSTGRES> with SUPERUSER;
+ALTER DATABASE "kafka-worker" OWNER TO root;
+GRANT CONNECT ON DATABASE "kafka-worker" TO root;
 ```
 
-## creating the database
+Then connect to the app database (`\c kafka-worker` or `psql -d kafka-worker`):
 
-### Connect as user with the following credentials
+```sql
+GRANT ALL ON SCHEMA public TO root;
+ALTER SCHEMA public OWNER TO root;
+```
+
+Or re-run `python create_database.py -n dev -r kafka-worker` to apply the same grants automatically.
+
+Avoid `ALTER ROLE ... WITH SUPERUSER` unless you explicitly want full cluster admin for that user in dev.
+
+## Application credentials
+
+App services use credentials from `resources/vault/<app>/database/<namespace>/.env`, for example:
 
 ```
 username: root
 password: example
+database: kafka-worker
 ```
 
-Create the database `kafka-worker` and execute the following query
-
-```sql
-CREATE TABLE IF NOT EXISTS example_events
-(
-    event_id uuid NOT NULL,
-    event_type character varying(255) COLLATE pg_catalog."default" NOT NULL,
-    user_id uuid NOT NULL,
-    username character varying(255) COLLATE pg_catalog."default" NOT NULL,
-    created_at timestamp without time zone NOT NULL DEFAULT now(),
-    updated_at timestamp without time zone NOT NULL DEFAULT now(),
-    CONSTRAINT example_events_pkey PRIMARY KEY (event_id)
-)
-```
+Migrations run as this user after `create_database.py` has been executed.
