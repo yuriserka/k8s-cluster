@@ -1,5 +1,42 @@
 [flake8]
-ignore = D203
-exclude = .git,__pycache__,.venv,.mypy_cache
-max-complexity = 10
+# --- Core limits ---
 max-line-length = 120
+max-doc-length = 120
+max-complexity = 10
+indent-size = 4
+hang-closing = False
+
+# --- Plugins ---
+require-plugins =
+    flake8-bugbear,
+    flake8-comprehensions
+extend-select = B,C4
+
+# --- Lint scope: kafkaworker/ only (see .pipeline lint step) ---
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    .mypy_cache,
+    .pytest_cache,
+    build,
+    dist,
+    *.egg-info,
+    manage.py,
+    test.py,
+    worker_health_check.py
+
+# --- Rule adjustments (formatter-friendly) ---
+extend-ignore =
+    E203,
+    W503
+
+# --- Per-file exceptions (Django idioms) ---
+per-file-ignores =
+    __init__.py:F401,F403
+    */migrations/*:E501
+    */settings.py:E501
+
+# --- Output ---
+count = True
+show-source = True

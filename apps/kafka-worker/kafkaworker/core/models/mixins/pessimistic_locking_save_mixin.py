@@ -2,7 +2,7 @@ import logging
 
 from django.db.models.base import sync_to_async
 from jsondiff import diff as compute_json_diff, patch as apply_json_patch
-from django.db import models,transaction
+from django.db import models, transaction
 
 logger = logging.getLogger(__name__)
 
@@ -152,11 +152,11 @@ class PessimisticLockingSaveMixin(models.Model):
 
     @sync_to_async
     def save_under_lock(
-      self,
-      *,
-      force_update: bool = False,
-      using: str | None = None,
-      update_fields: list[str] | None = None,
+        self,
+        *,
+        force_update: bool = False,
+        using: str | None = None,
+        update_fields: list[str] | None = None,
     ):
         """SELECT FOR UPDATE the row, copy dirty fields, and persist.
 
