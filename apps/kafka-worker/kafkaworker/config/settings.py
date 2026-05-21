@@ -42,12 +42,15 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'kafkaworker.config',
     'kafkaworker.core',
-    'kafkaworker.views',
-    'kafkaworker.example_events_worker',
+    'django_apscheduler',
+    'kafkaworker.containers.api.views',
+    'kafkaworker.containers.example_events_worker',
+    'kafkaworker.containers.scheduler',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'kafkaworker.core.middleware.mock_trace_context.MockTraceContextMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -142,7 +145,15 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': '%(asctime)s [%(levelname)s] [%(name)s] %(message)s',
+            'format': (
+                '%(asctime)s [%(levelname)s] [trace_id=%(trace_id)s, span_id=%(span_id)s] '
+                '[%(name)s] %(message)s'
+            ),
+        },
+    },
+    'filters': {
+        'trace_context': {
+            '()': 'kafkaworker.core.logging.trace_context.TraceContextFilter',
         },
     },
     'handlers': {
@@ -150,7 +161,8 @@ LOGGING = {
             'level': 'INFO',
             'class': 'logging.StreamHandler',
             'stream': sys.stdout,
-            'formatter': 'verbose'
+            'formatter': 'verbose',
+            'filters': ['trace_context'],
         },
     },
     'loggers': {

@@ -8,7 +8,13 @@ from kafkaworker.core.utils.exponential_backoff import get_expo_backoff
 
 
 from abc import ABC, abstractmethod
-logger = logging .getLogger(__name__)
+
+from kafkaworker.core.logging.trace_context import (
+    bind_mock_trace_context,
+    reset_trace_context,
+)
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
@@ -67,6 +73,13 @@ class AbstractKafkaConsumer(ABC, Generic[T]):
             )
 
     async def _retry_message(self, retry_message: RetryableMessage[T], topic_partition: TopicPartition):
+        bind_mock_trace_context()
+        try:
+            await self._retry_message_inner(retry_message, topic_partition)
+        finally:
+            reset_trace_context()
+
+    async def _retry_message_inner(self, retry_message: RetryableMessage[T], topic_partition: TopicPartition):
         parsed_message = retry_message.message
         self.buffer.get(topic_partition, []).remove(retry_message)
 
@@ -106,6 +119,13 @@ class AbstractKafkaConsumer(ABC, Generic[T]):
             }
 
     async def _base_handle_message(self, message, topic_partition: TopicPartition):
+        bind_mock_trace_context()
+        try:
+            await self._base_handle_message_inner(message, topic_partition)
+        finally:
+            reset_trace_context()
+
+    async def _base_handle_message_inner(self, message, topic_partition: TopicPartition):
         topic = topic_partition.topic
         partition = topic_partition.partition
 

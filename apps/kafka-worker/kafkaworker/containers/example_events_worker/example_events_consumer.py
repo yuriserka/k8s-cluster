@@ -13,7 +13,7 @@ from kafkaworker.core.factories.example_topic import (
     ExampleTopicPayloadFactory
 )
 
-logger = logging .getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class ExampleEventKafkaConsumer(AbstractKafkaConsumer[ExampleTopicEventDTO]):

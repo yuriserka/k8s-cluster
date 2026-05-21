@@ -1,5 +1,3 @@
-# flake8: noqa
-
 from kafkaworker.core.factories.example_topic.handler_factory import (
     ExampleTopicHandlerFactory,
 )
@@ -7,3 +5,8 @@ from kafkaworker.core.factories.example_topic.handler_factory import (
 from kafkaworker.core.factories.example_topic.payload_factory import (
     ExampleTopicPayloadFactory,
 )
+
+__all__ = [
+    'ExampleTopicHandlerFactory',
+    'ExampleTopicPayloadFactory',
+]

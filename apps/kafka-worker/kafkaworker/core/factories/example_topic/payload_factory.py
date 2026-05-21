@@ -1,23 +1,11 @@
-from typing import NamedTuple
-
 from kafkaworker.core.models.example_event.payloads.kafka_message import (
     EventTypes,
     ExampleTopicEventDTO,
 )
-
-
-class SendMessageToUserEventPayloadDTO(NamedTuple):
-    user_id: str
-    username: str
-
-
-class SendWeatherReportEventPayloadDTO(NamedTuple):
-    report_id: str
-    address: str
-    temperature: str
-    wind_speed: str
-    wind_direction: str
-    timestamp: str
+from kafkaworker.core.factories.example_topic.dtos import (
+    SendMessageToUserEventPayloadDTO,
+    SendWeatherReportEventPayloadDTO
+)
 
 
 class ExampleTopicPayloadFactory:

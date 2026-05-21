@@ -18,9 +18,11 @@ from django.contrib import admin
 from django.urls import path
 from kafkaworker.containers.api.views.hello_world import hello_world_view
 from kafkaworker.containers.api.views.fetch_image import fetch_image_view
+from kafkaworker.containers.api.views.update_event import update_event_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('hello-world', hello_world_view),
     path('fetch-image', fetch_image_view),
+    path('update-event/<str:event_id>', update_event_view),
 ]

@@ -56,6 +56,12 @@ steps:
     dockerfile: Dockerfile
     env: dev
 
+  dev-publish-scheduler:
+    kind: publish
+    repo: kafka-worker-scheduler
+    dockerfile: Dockerfile
+    env: dev
+
   dev-deploy-api:
     kind: install
     repo: kafka-worker
@@ -68,4 +74,11 @@ steps:
     repo: kafka-worker
     application: kafka-worker-example-topic-consumer
     params_file: example-topic-consumer.yaml
+    env: dev
+
+  dev-deploy-scheduler:
+    kind: install
+    repo: kafka-worker
+    application: kafka-worker-scheduler
+    params_file: scheduler.yaml
     env: dev

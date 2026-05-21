@@ -1,8 +1,5 @@
 from django.http import HttpResponse, JsonResponse, HttpRequest, HttpResponseBadRequest
-from kafkaworker.core.adapters.s3.s3_adapter import S3Adapter
-from kafkaworker.core.adapters.s3.s3_multipart_upload_service import S3MultipartUploaderService
-from kafkaworker.core.services.file_downloader_service import FileDownloaderService
-from kafkaworker.core.services.media_processing_service import MediaProcessingService
+from kafkaworker.containers.api.factory import media_processing_service
 import logging
 import uuid
 
@@ -10,12 +7,6 @@ from django.views import View
 
 logger = logging.getLogger(__name__)
 
-media_processing_service = MediaProcessingService(
-  file_downloader_service=FileDownloaderService(),
-  s3_adapter=S3Adapter(
-    s3_multipart_upload_service=S3MultipartUploaderService(),
-  ),
-)
 
 class FetchImageView(View):
   async def get(self, request: HttpRequest) -> HttpResponse:

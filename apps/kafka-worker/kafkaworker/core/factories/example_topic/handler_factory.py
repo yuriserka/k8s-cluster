@@ -4,6 +4,7 @@ from kafkaworker.core.factories.example_topic.handlers import (
     SendMessageToUserHandler,
     SendWeatherReportHandler,
 )
+from kafkaworker.core.models.example_event.example_event_repository import ExampleEventRepository
 from kafkaworker.core.models.example_event.payloads.kafka_message import (
     EventTypes,
     ExampleTopicEventDTO,
@@ -11,7 +12,9 @@ from kafkaworker.core.models.example_event.payloads.kafka_message import (
 from kafkaworker.core.services.example_events_service import ExampleEventsService
 
 send_message_to_user_handler = SendMessageToUserHandler(
-    example_events_service=ExampleEventsService()
+    example_events_service=ExampleEventsService(
+        example_event_repository=ExampleEventRepository()
+    )
 )
 send_weather_report_handler = SendWeatherReportHandler()
 
