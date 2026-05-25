@@ -10,3 +10,4 @@ boto3
 django-concurrency
 django-apscheduler
 jsondiff
+django-prometheus
