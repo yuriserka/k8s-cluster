@@ -39,6 +39,8 @@ python pipeline_parser.py kafka-worker
 
 On success or failure, pipeline services are removed and the temp copy `tmp-<repo>-pipeline/` is deleted.
 
+**Image tags in the pipeline:** publish and install steps use the step `env` value as the Docker/Helm tag (e.g. `env: dev` → `kafka-worker-api-dev:dev`). Each pipeline run overwrites that tag in minikube instead of creating a new timestamp tag per run.
+
 If you see a Docker name conflict from an interrupted run, remove the container manually or re-run the pipeline (it removes leftover containers before `docker run`).
 
 ### Cluster database (before migrations against minikube Postgres)
@@ -69,7 +71,7 @@ These are invoked by `pipeline_parser.py` for steps with `kind: publish` or `kin
 **Publish** — build image tagged `<repo>-<namespace>:<tag>`:
 
 ```bash
-python publish_app.py -r kafka-worker-api -d Dockerfile -p /path/to/build/context -n dev -t 2025.01.01.12.00.00 -k
+python publish_app.py -r kafka-worker-api -d Dockerfile -p /path/to/build/context -n dev -t dev -k
 ```
 
 | Flag | Description |
@@ -86,7 +88,7 @@ Optional OpenTelemetry instrumentation is applied when enabled in `../resources/
 **Install** — Helm install or upgrade:
 
 ```bash
-python install_app.py -r kafka-worker -a kafka-worker-api -e api.yaml -p /path/to/app -n dev -t 2025.01.01.12.00.00
+python install_app.py -r kafka-worker -a kafka-worker-api -e api.yaml -p /path/to/app -n dev -t dev
 ```
 
 | Flag | Description |
@@ -109,8 +111,8 @@ Defined in each app's `apps/<repo>/.pipeline`:
 | *(none)* | Runs shell `cmd` list in the temp pipeline directory |
 | `credentials` | Writes vault secrets to `output_file` (`path` format: `database:<target>:<namespace>`) |
 | `database_migration` | Runs migration commands (expects `db-credentials` or env file) |
-| `publish` | Calls `publish_app.py` |
-| `install` | Calls `install_app.py` |
+| `publish` | Calls `publish_app.py` with `-t` set to the step `env` (same as `-n`) |
+| `install` | Calls `install_app.py` with `-t` set to the step `env` |
 
 **Services** (top of `.pipeline`): Docker containers started before steps; env written to `output_file` for app commands.
 
@@ -151,4 +153,5 @@ k8s-cluster/
 - **`permission denied for schema public`** (Django migrations on cluster) — run `create_database.py` for that repo/namespace, then migrate again.
 - **Pipeline fails on `rsync`** — run from `scripts/` (or any cwd; paths use `REPO_ROOT`).
 - **Publish: `lstat /home/...: no such file or directory`** — WSL path passed to Docker Desktop; re-run publish after updating `publish_app.py` (builds via `cd` + relative context). Ensure minikube is running.
-- **ErrImageNeverPull** — image tag in Helm must exist in `minikube image ls`; publish must succeed before deploy (same pipeline tag).
+- **ErrImageNeverPull** — image tag in Helm must exist in `minikube image ls`; publish must succeed before deploy (pipeline uses tag = `env`, e.g. `:dev`).
+- **Many old timestamp image tags** — from runs before env-based tagging; remove with `minikube image rm <name:tag>` or prune inside minikube docker (`eval "$(minikube docker-env --shell bash)" && docker image prune`).

@@ -2,11 +2,8 @@ from functools import reduce
 from typing import NamedTuple
 import yaml
 import os
-from datetime import datetime
 
-from repo_paths import REPO_ROOT, SCRIPT_DIR, resolve_path
-
-pipeline_tag = datetime.today().strftime('%Y.%m.%d.%H.%M.%S')
+from repo_paths import REPO_ROOT, SCRIPT_DIR
 
 
 class ServiceArgs(NamedTuple):
@@ -86,7 +83,7 @@ def handle_install_step(args: InstallStepArgs, temp_folder_path: str):
     install_script = os.path.join(SCRIPT_DIR, 'install_app.py')
     return execute_cli_command(
         f'python {install_script} -r {args.repo} -a {args.application} '
-        f'-e {args.params_file} -p {temp_folder_path} -n {args.env} -t {pipeline_tag}'
+        f'-e {args.params_file} -p {temp_folder_path} -n {args.env} -t {args.env}'
     )
 
 
@@ -95,7 +92,7 @@ def handle_publish_step(args: PublishStepArgs, temp_folder_path: str):
     publish_script = os.path.join(SCRIPT_DIR, 'publish_app.py')
     return execute_cli_command(
         f'python {publish_script} -r {args.repo} -d {args.dockerfile} '
-        f'-p {temp_folder_path} -n {args.env} -k -t {pipeline_tag}'
+        f'-p {temp_folder_path} -n {args.env} -k -t {args.env}'
     )
 
 
@@ -115,6 +112,8 @@ def handle_credentials_step(args: CredentialsStepArgs, temp_folder_path: str):
     vault_root = os.path.join(REPO_ROOT, 'resources', 'vault', target)
     resource_directories = os.listdir(vault_root)
     for resource_name in resource_directories:
+        if resource_name != resource:
+            continue
         env_dir = os.path.join(vault_root, resource_name, namespace)
         if not os.path.isdir(env_dir):
             continue
