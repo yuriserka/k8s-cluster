@@ -60,7 +60,7 @@ spec:
   template:
     metadata:
       annotations:
-        rollme: "PMGA7"
+        rollme: "th4bc"
       labels:
         helm.sh/chart: dev-0.1.0
         app.kubernetes.io/name: dev
@@ -70,7 +70,7 @@ spec:
     spec:
       containers:
         - name: kafka-worker-scheduler-dev
-          image: "kafka-worker-scheduler-dev:2026.05.21.02.03.33"
+          image: "kafka-worker-scheduler-dev:dev"
           imagePullPolicy: Never
           command:
             - python

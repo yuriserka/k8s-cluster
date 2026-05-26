@@ -14,7 +14,7 @@ class UpdateEventJob(ScheduleJob):
         super().__init__(
             name='update_event_job',
             type=ScheduleJobType.INTERVAL,
-            interval_seconds=0.2,
+            interval_seconds=10,
         )
 
     async def execute(self) -> None:

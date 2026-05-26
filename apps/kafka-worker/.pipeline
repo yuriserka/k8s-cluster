@@ -32,23 +32,20 @@ steps:
     cmd:
       - "export $(cat ./db-credentials) && . .venv/bin/activate && python -Wa manage.py test"
 
-  dev-get-database-credentials:
-    kind: credentials
-    path: database:kafka-worker:dev
-    output_file: ./db-credentials
-
-  dev-migrate:
-    kind: database_migration
-    env: dev
-    cmd:
-      - "export $(cat ./db-credentials) && . .venv/bin/activate && python manage.py showmigrations"
-      - "export $(cat ./db-credentials) && . .venv/bin/activate && python manage.py migrate"
-
   dev-publish-api:
     kind: publish
     repo: kafka-worker-api
     dockerfile: Dockerfile
     env: dev
+
+  dev-migrate:
+    kind: database_migration
+    env: dev
+    repository: kafka-worker
+    image_repo: kafka-worker-api
+    cmd:
+      - python manage.py showmigrations
+      - python manage.py migrate
 
   dev-publish-kafka-worker:
     kind: publish

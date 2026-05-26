@@ -26,11 +26,15 @@ class ScheduleJob:
         interval_seconds: Optional[int] = None,
         cron_expression: Optional[str] = None,
         max_instances: Optional[int] = None,
+        start_delay_seconds: Optional[int] = None,
     ):
         self.name = name
         self.type = type
         self.max_instances = max_instances or 1
+        self.start_delay_seconds = start_delay_seconds
         self.__assert_valid(interval_seconds, cron_expression)
+        if start_delay_seconds is not None and start_delay_seconds < 0:
+            raise ValueError('start_delay_seconds must be non-negative')
 
     @abstractmethod
     async def execute(self) -> None:

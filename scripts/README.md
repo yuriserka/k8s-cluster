@@ -110,11 +110,52 @@ Defined in each app's `apps/<repo>/.pipeline`:
 |--------|------------------|
 | *(none)* | Runs shell `cmd` list in the temp pipeline directory |
 | `credentials` | Writes vault secrets to `output_file` (`path` format: `database:<target>:<namespace>`) |
-| `database_migration` | Runs migration commands (expects `db-credentials` or env file) |
+| `database_migration` | In-cluster migrate via `kubectl run` (no port-forward); see below |
 | `publish` | Calls `publish_app.py` with `-t` set to the step `env` (same as `-n`) |
 | `install` | Calls `install_app.py` with `-t` set to the step `env` |
 
-**Services** (top of `.pipeline`): Docker containers started before steps; env written to `output_file` for app commands.
+**Services** (top of `.pipeline`): Docker containers started before steps; env written to `output_file` for app commands (used by `test`, not by `dev-migrate`).
+
+### `database_migration` (in-cluster)
+
+`dev-migrate` always runs inside minikube: waits for `postgresql-0` to be ready, runs `create_database.py`, then one-off pods with `DATABASE_HOST` from vault `CLUSTER_HOST` (Kubernetes Service DNS, default `postgresql`). Do not use `minikube service` URLs for in-cluster migrate pods.
+
+Publish the migrate image **before** `dev-migrate`:
+
+**kafka-worker** — API image includes Django:
+
+```yaml
+dev-publish-api:
+  kind: publish
+  ...
+dev-migrate:
+  kind: database_migration
+  env: dev
+  repository: kafka-worker
+  image_repo: kafka-worker-api
+  cmd:
+    - python manage.py showmigrations
+    - python manage.py migrate
+```
+
+**kafka-producer** — dedicated Gradle/Flyway image:
+
+```yaml
+dev-publish-migrate:
+  kind: publish
+  repo: kafka-producer-migrate
+  dockerfile: app/containers/migrate/Dockerfile
+  env: dev
+dev-migrate:
+  kind: database_migration
+  env: dev
+  repository: kafka-producer
+  image_repo: kafka-producer-migrate
+  cmd:
+    - ./gradlew :app:core:flywayMigrate -Dflyway.configFiles=app/core/flyway.conf
+```
+
+Image reference: `{image_repo}-{env}:{env}` (e.g. `kafka-worker-api-dev:dev`). Failed migrate aborts the pipeline before deploy.
 
 ## `create_database.py`
 

@@ -1,9 +1,15 @@
-from functools import reduce
 from typing import NamedTuple
+import json
+import shlex
 import yaml
 import os
+from datetime import datetime
 
 from repo_paths import REPO_ROOT, SCRIPT_DIR
+
+DEFAULT_POSTGRES_SERVICE = 'postgresql'
+DEFAULT_POSTGRES_PORT = '5432'
+POSTGRES_READY_TIMEOUT_SECONDS = 120
 
 
 class ServiceArgs(NamedTuple):
@@ -17,6 +23,8 @@ class ServiceArgs(NamedTuple):
 class DatabaseMigrationStepArgs(NamedTuple):
     kind: str
     env: str
+    repository: str
+    image_repo: str
     cmd: list[str]
 
 
@@ -132,14 +140,123 @@ def handle_credentials_step(args: CredentialsStepArgs, temp_folder_path: str):
     return 0
 
 
-def handle_database_migration_step(args: DatabaseMigrationStepArgs, temp_folder_path: str):
-    print('Migrating database with args:', args)
-    os.chdir(temp_folder_path)
-    return reduce(
-        lambda acc, cmd: acc + execute_cli_command(cmd),
-        args.cmd,
-        0,
+def read_vault_database_secrets(repository: str, namespace: str) -> dict:
+    env_file = os.path.join(
+        REPO_ROOT, 'resources', 'vault', repository, 'database', namespace, '.env'
     )
+    secrets = {}
+    with open(env_file) as secrets_file:
+        for line in secrets_file:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            key, value = line.split('=', 1)
+            secrets[key.upper()] = value.strip()
+    return secrets
+
+
+def resolve_cluster_database_host(namespace: str, secrets: dict) -> str:
+    """Kubernetes Service DNS name for in-cluster clients (not minikube service URL)."""
+    host = secrets.get('CLUSTER_HOST', DEFAULT_POSTGRES_SERVICE)
+    exit_code = execute_cli_command(
+        'minikube kubectl -- get svc '
+        f'{shlex.quote(host)} -n {shlex.quote(namespace)} >/dev/null 2>&1'
+    )
+    if exit_code != 0:
+        raise RuntimeError(
+            f'PostgreSQL service "{host}" not found in namespace "{namespace}". '
+            'Install infra (helm postgresql) or set CLUSTER_HOST in vault database .env.'
+        )
+    return host
+
+
+def wait_for_postgresql_ready(namespace: str) -> int:
+    return execute_cli_command(
+        'minikube kubectl -- wait --for=condition=ready '
+        f'pod/{DEFAULT_POSTGRES_SERVICE}-0 -n {shlex.quote(namespace)} '
+        f'--timeout={POSTGRES_READY_TIMEOUT_SECONDS}s'
+    )
+
+
+def load_cluster_database_env(repository: str, namespace: str) -> dict:
+    secrets = read_vault_database_secrets(repository, namespace)
+    cluster_host = resolve_cluster_database_host(namespace, secrets)
+
+    return {
+        'DATABASE_USER': secrets['USER'],
+        'DATABASE_PASSWORD': secrets['PASSWORD'],
+        'DATABASE_NAME': secrets['NAME'],
+        'DATABASE_PORT': secrets.get('PORT', DEFAULT_POSTGRES_PORT),
+        'DATABASE_HOST': cluster_host,
+    }
+
+
+def run_in_cluster_migration_command(
+    namespace: str,
+    image: str,
+    env_vars: dict,
+    command_argv: list[str],
+    run_id: str,
+) -> int:
+    overrides = {
+        'spec': {
+            'containers': [{
+                'name': 'migrate',
+                'image': image,
+                'imagePullPolicy': 'Never',
+                'env': [
+                    {'name': key, 'value': value}
+                    for key, value in env_vars.items()
+                ],
+                'command': command_argv,
+            }],
+        },
+    }
+    pod_name = f'migrate-{run_id}'
+    cmd = (
+        f'minikube kubectl -- run {shlex.quote(pod_name)} '
+        f'--rm -i --restart=Never -n {shlex.quote(namespace)} '
+        f'--image={shlex.quote(image)} '
+        f'--overrides={shlex.quote(json.dumps(overrides))}'
+    )
+    return execute_cli_command(cmd)
+
+
+def handle_database_migration_step(args: DatabaseMigrationStepArgs, temp_folder_path: str):
+    print('Migrating database in cluster with args:', args)
+
+    exit_code = wait_for_postgresql_ready(args.env)
+    if exit_code != 0:
+        print(
+            f'PostgreSQL is not ready in namespace "{args.env}" '
+            f'(waited {POSTGRES_READY_TIMEOUT_SECONDS}s for pod/{DEFAULT_POSTGRES_SERVICE}-0).'
+        )
+        return exit_code
+
+    create_script = os.path.join(SCRIPT_DIR, 'create_database.py')
+    exit_code = execute_cli_command(
+        f'python {create_script} -n {args.env} -r {args.repository}'
+    )
+    if exit_code != 0:
+        return exit_code
+
+    database_env = load_cluster_database_env(args.repository, args.env)
+    image = f'{args.image_repo}-{args.env}:{args.env}'
+    run_id = datetime.now().strftime('%H%M%S%f')
+
+    for index, command in enumerate(args.cmd):
+        command_argv = shlex.split(command)
+        exit_code = run_in_cluster_migration_command(
+            args.env,
+            image,
+            database_env,
+            command_argv,
+            f'{run_id}-{index}',
+        )
+        if exit_code != 0:
+            return exit_code
+
+    return 0
 
 
 step_kinds_processor = {
