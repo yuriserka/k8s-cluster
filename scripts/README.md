@@ -153,7 +153,7 @@ dev-migrate:
   repository: kafka-producer
   image_repo: kafka-producer-migrate
   cmd:
-    - ./gradlew :app:core:flywayMigrate -Dflyway.configFiles=app/core/flyway.conf
+    - ./gradlew :app:core:flywayMigrate -Dflyway.configFiles=flyway.conf
 ```
 
 Image reference: `{image_repo}-{env}:{env}` (e.g. `kafka-worker-api-dev:dev`). Failed migrate aborts the pipeline before deploy.

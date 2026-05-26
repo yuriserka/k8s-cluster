@@ -18,6 +18,25 @@ plugins {
 	id 'org.springframework.boot' version "${springBootVersion}"
 }
 
+def loadPipelineDbCredentials() {
+    def credsFile = rootProject.file('db-credentials')
+    if (!credsFile.exists()) {
+        return [:]
+    }
+    def creds = [:]
+    credsFile.eachLine { line ->
+        line = line.trim()
+        if (!line || line.startsWith('#')) {
+            return
+        }
+        def separator = line.indexOf('=')
+        if (separator > 0) {
+            creds[line.substring(0, separator)] = line.substring(separator + 1)
+        }
+    }
+    return creds
+}
+
 allprojects {
     group = 'com.github.yuriserka'
     version = '0.0.1-SNAPSHOT'
@@ -25,11 +44,6 @@ allprojects {
     java {
         sourceCompatibility = '17'
         targetCompatibility = '17'
-    }
-
-    tasks.withType(Test) {
-        useJUnitPlatform()
-        failFast = true
     }
 
     repositories {
@@ -50,6 +64,14 @@ allprojects {
 }
 
 subprojects {
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+        failFast = true
+        loadPipelineDbCredentials().each { key, value ->
+            environment key, value
+        }
+    }
+
     configurations {
 	    compileOnly {
 		    extendsFrom annotationProcessor

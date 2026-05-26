@@ -5,42 +5,45 @@ services:
       POSTGRES_USER: test
       POSTGRES_PASSWORD: test
       POSTGRES_DB: kafka-producer
-    image_port_map: 5433:5432
+    image_port_map: 5434:5432
     env_vars:
       DATABASE_USER: test
       DATABASE_PASSWORD: test
       DATABASE_HOST: localhost
       DATABASE_NAME: kafka-producer
-      DATABASE_PORT: 5433
+      DATABASE_PORT: 5434
     output_file: ./db-credentials
 
 steps:
   install:
     cmd:
-      - "gradle clean assemble -x bootJar"
+      - "./gradlew clean assemble -x bootJar"
 
   lint:
     cmd:
-      - "gradle check -x test"
+      - "./gradlew check -x test"
 
   test:
     cmd:
-      - "export $(cat ./db-credentials) && gradle test -x bootJar"
+      - "./gradlew test -x bootJar"
 
   build:
     cmd:
-      - "gradle bootJar"
-  
-  dev-get-database-credentials:
-    kind: credentials
-    path: database:kafka-producer:dev
-    output_file: ./db-credentials
+      - "./gradlew bootJar"
+
+  dev-publish-migrate:
+    kind: publish
+    repo: kafka-producer-migrate
+    dockerfile: app/containers/migrate/Dockerfile
+    env: dev
 
   dev-migrate:
     kind: database_migration
     env: dev
+    repository: kafka-producer
+    image_repo: kafka-producer-migrate
     cmd:
-      - "export $(cat ./db-credentials) && gradle :app:core:flywayMigrate -Dflyway.configFiles=flyway.conf"
+      - ./gradlew :app:core:flywayMigrate -Dflyway.configFiles=flyway.conf
 
   dev-publish-api:
     kind: publish

@@ -1,12 +1,35 @@
+# Bitnami moved versioned tags to bitnamilegacy (Aug 2025). See bitnami/containers#83267.
+global:
+  security:
+    allowInsecureImages: true
+
+image:
+  registry: docker.io
+  repository: bitnamilegacy/kafka
+  tag: 4.0.0-debian-12-r10
+
 kraft:
   enabled: true
 service:
   ports:
     client: 9092
+
 controller:
+  # Number of Kafka brokers. RF for topics and internal offsets cannot exceed this.
   replicaCount: 1
+
   persistence:
     size: 1Gi
+
+  # Internal topics (__consumer_offsets). Required when replicaCount is 1.
+  # With default RF=3 and one broker, creation loops forever:
+  #   "Sent auto-creation request for Set(__consumer_offsets)..."
+  # For replicaCount: 3, remove this block and use default RF=3.
+  overrideConfiguration:
+    offsets.topic.replication.factor: "1"
+    transaction.state.log.replication.factor: "1"
+    transaction.state.log.min.isr: "1"
+
 listeners:
   client:
     protocol: 'PLAINTEXT'
@@ -16,6 +39,3 @@ listeners:
     protocol: 'PLAINTEXT'
   external:
     protocol: 'PLAINTEXT'
-extraConfig: |
-  offsets.topic.replication.factor=1
-  transaction.state.log.replication.factor=1

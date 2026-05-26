@@ -42,6 +42,7 @@ spec:
   selector:
     app.kubernetes.io/name: dev
     app.kubernetes.io/instance: kafka-producer-scheduler
+
 ---
 # Source: dev/templates/deployment.yaml
 apiVersion: apps/v1
@@ -63,7 +64,7 @@ spec:
   template:
     metadata:
       annotations:
-        rollme: "cKaer"
+        rollme: "SmEWp"
       labels:
         helm.sh/chart: dev-0.1.0
         app.kubernetes.io/name: dev
@@ -73,7 +74,7 @@ spec:
     spec:
       containers:
         - name: kafka-producer-scheduler-dev
-          image: "kafka-producer-scheduler-dev:2025.06.29.15.37.18"
+          image: "kafka-producer-scheduler-dev:dev"
           imagePullPolicy: Never
           ports:
             - name: http

@@ -60,7 +60,7 @@ spec:
   template:
     metadata:
       annotations:
-        rollme: "th4bc"
+        rollme: "mx4mj"
       labels:
         helm.sh/chart: dev-0.1.0
         app.kubernetes.io/name: dev
