@@ -25,6 +25,7 @@ For cluster workflows, start infra from the [project README](../README.md) first
 | [`create_database.py`](create_database.py) | Creates a PostgreSQL database in the cluster and grants the app user ownership of the DB and `public` schema (PG15+) |
 | [`publish_app.py`](publish_app.py) | Builds a Docker image for one application component |
 | [`install_app.py`](install_app.py) | Renders Helm values and installs/upgrades a release in Kubernetes |
+| [`remove_all_pods.py`](remove_all_pods.py) | Uninstalls every Helm release declared by `kind: install` steps in an app's `.pipeline` |
 | [`repo_paths.py`](repo_paths.py) | Shared `REPO_ROOT`, `SCRIPT_DIR`, and `resolve_path()` used by the scripts above |
 
 ## Typical workflow
@@ -175,6 +176,23 @@ Executes `psql` inside the `postgresql-0` pod via `minikube kubectl -- exec`:
 3. `GRANT` / `ALTER SCHEMA public` connected to the app database
 
 See also [PostgreSQL infra notes](../apps/infra/postgresql/README.md).
+
+## `remove_all_pods.py`
+
+Tears down everything an app's pipeline deploys for a given namespace. Despite the filename, it does **not** delete pods directly — it runs `helm uninstall` for each release listed in `kind: install` steps of `apps/<repository>/.pipeline` where `env` matches `-n` and `repo` matches `-r`.
+
+```bash
+python remove_all_pods.py -n dev -r kafka-worker
+```
+
+| Flag | Description |
+|------|-------------|
+| `-n` | Kubernetes namespace (must match the install step `env`, e.g. `dev`) |
+| `-r` | App folder name under `apps/` (must match the install step `repo`, e.g. `kafka-worker`) |
+
+For `kafka-worker` with `env: dev`, this uninstalls `kafka-worker-api`, `kafka-worker-example-topic-consumer`, and `kafka-worker-scheduler` (the `application` values from each matching install step). `kafka-producer` uninstalls `kafka-producer-api` and `kafka-producer-scheduler`.
+
+Use this to reset cluster state after a pipeline deploy without uninstalling shared infra (Kafka, PostgreSQL, etc.). To remove a single release instead, use `helm uninstall <application> -n <namespace>`.
 
 ## Layout assumptions
 

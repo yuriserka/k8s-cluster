@@ -63,6 +63,13 @@ to stop a specific app execute:
 helm uninstall <app_name> -n dev
 ```
 
+to uninstall every Helm release that app's pipeline deploys (all `kind: install` steps for that repo/namespace):
+
+```bash
+cd scripts
+python remove_all_pods.py -n dev -r <app_name>
+```
+
 and to stop minikube and all services just run:
 
 ```bash
