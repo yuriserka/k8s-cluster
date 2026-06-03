@@ -18,12 +18,6 @@ public class KafkaBrokerEventTypesFactory {
     final OutboxEventBuilder<?> eventBuilder = switch (eventType) {
       case SEND_MESSAGE_TO_USER -> sendMessageToUserEventBuilder;
       case SEND_WEATHER_REPORT -> sendWeatherReportEventBuilder;
-      default -> throw new IllegalArgumentException(
-        String.format(
-          "Event type %s is not supported",
-          eventType
-        )
-      );
     };
     return eventBuilder.build(args);
   }

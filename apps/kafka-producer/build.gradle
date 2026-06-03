@@ -24,3 +24,12 @@ tasks.register('codeChecks') {
     group = 'verification'
     description = 'Runs Checkstyle and PMD for the kafka-producer project.'
 }
+
+gradle.projectsEvaluated {
+    def coverageReport = tasks.named('testCodeCoverageReport')
+    subprojects.each { project ->
+        project.tasks.matching { it.name == 'test' }.configureEach {
+            it.finalizedBy coverageReport
+        }
+    }
+}

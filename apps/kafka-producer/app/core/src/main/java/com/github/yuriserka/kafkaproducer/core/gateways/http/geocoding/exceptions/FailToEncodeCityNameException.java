@@ -7,4 +7,8 @@ public class FailToEncodeCityNameException extends BusinessException {
   public FailToEncodeCityNameException(final String cityName) {
     super(String.format("Fail to encode city name %s", cityName));
   }
+
+  public FailToEncodeCityNameException(final String cityName, final Throwable cause) {
+    super(String.format("Fail to encode city name %s", cityName), cause);
+  }
 }

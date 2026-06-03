@@ -37,7 +37,7 @@ public class GeocodingAdapter {
     try {
       return URLEncoder.encode(city, "UTF-8");
     } catch (final UnsupportedEncodingException e) {
-      throw new FailToEncodeCityNameException(city);
+      throw new FailToEncodeCityNameException(city, e);
     }
   }
 }

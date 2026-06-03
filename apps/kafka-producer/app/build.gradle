@@ -89,6 +89,7 @@ subprojects {
 
     tasks.named('jacocoTestReport') {
         dependsOn test
+        finalizedBy 'jacocoTestCoverageVerification'
         reports {
             xml.required = true
             html.required = true

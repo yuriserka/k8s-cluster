@@ -10,7 +10,7 @@ Gradle multi-module app (Java **21**): **API** (HTTP → outbox), **scheduler** 
 | Scheduler | [app/containers/scheduler/README.md](app/containers/scheduler/README.md) | Publishes outbox to Kafka |
 | Migrate | [app/containers/migrate/README.md](app/containers/migrate/README.md) | Flyway migrations (one-shot) |
 
-Each README covers **run** (env vars), **tests**, and **lint** for that piece.
+Each README covers **run** (env vars) and **tests** for that piece. Lint and coverage are project-wide — see [Repo-wide Gradle tasks](#repo-wide-gradle-tasks).
 
 ## Quick start (all services locally)
 
@@ -62,9 +62,36 @@ From `apps/kafka-producer/`:
 
 | Step | Command |
 |------|---------|
-| Lint | `./gradlew codeChecks` |
-| Test (all modules) | `./gradlew test -x bootJar` |
+| Lint (Checkstyle + PMD) | `./gradlew codeChecks` |
+| Test (+ JaCoCo report, verification, aggregation) | `./gradlew test -x bootJar` |
 | Build JARs | `./gradlew bootJar` |
+
+### Quality reports
+
+After `./gradlew codeChecks`:
+
+| Report | Path |
+|--------|------|
+| Checkstyle (per module) | `app/<module>/build/reports/checkstyle/` |
+| PMD (per module) | `app/<module>/build/reports/pmd/` |
+
+After test + coverage:
+
+| Report | Path |
+|--------|------|
+| JaCoCo (per module) | `app/<module>/build/reports/jacoco/test/html/index.html` |
+| JaCoCo (aggregated) | `build/reports/jacoco/testCodeCoverageReport/html/index.html` |
+
+Minimum line coverage is enforced at **8%** per module (`jacocoTestCoverageVerification`); raise the floor in `app/build.gradle` as tests grow.
+
+### Docker Compose builds
+
+[`Dockerfile.dev`](app/containers/api/Dockerfile.dev) for api and scheduler runs the same gates as CI before producing the runtime image:
+
+1. `./gradlew codeChecks` (Checkstyle + PMD)
+2. `./gradlew test` (Testcontainers via mounted `docker.sock`; JaCoCo report, verification, and aggregation run automatically)
+
+**Docker must be running** on the host when you `docker compose build` or `docker compose up --build`. BuildKit is required (default in Docker Compose v2).
 
 ### Tests (Testcontainers)
 

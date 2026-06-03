@@ -12,7 +12,7 @@ For minikube image builds, load Docker into minikube first — see [project READ
 
 ### Option A — Docker Compose (API + Postgres + Kafka)
 
-Starts dependencies and builds via [`Dockerfile.dev`](Dockerfile.dev):
+Starts dependencies and builds via [`Dockerfile.dev`](Dockerfile.dev). The build runs **Checkstyle, PMD, tests, and JaCoCo** (same as CI) before the runtime image — Docker must be running on the host.
 
 ```bash
 docker compose up api --build

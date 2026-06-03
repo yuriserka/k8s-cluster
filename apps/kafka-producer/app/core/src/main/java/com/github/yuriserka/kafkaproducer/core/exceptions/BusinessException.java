@@ -1,8 +1,12 @@
 package com.github.yuriserka.kafkaproducer.core.exceptions;
 
-import lombok.RequiredArgsConstructor;
-
-@RequiredArgsConstructor
 public abstract class BusinessException extends RuntimeException {
-  final String message;
+
+  protected BusinessException(final String message) {
+    super(message);
+  }
+
+  protected BusinessException(final String message, final Throwable cause) {
+    super(message, cause);
+  }
 }

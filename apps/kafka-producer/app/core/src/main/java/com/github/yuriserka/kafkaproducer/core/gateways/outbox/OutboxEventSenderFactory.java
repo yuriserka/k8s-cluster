@@ -21,11 +21,8 @@ public class OutboxEventSenderFactory {
     final var broker = outboxEvent.getMessageBroker();
     return switch (broker) {
       case KAFKA -> kafkaBrokerEventSender;
-      default -> throw new IllegalArgumentException(
-        String.format(
-            "Broker %s is not supported",
-            broker
-        )
+      case SQS -> throw new IllegalArgumentException(
+          String.format("Broker %s is not supported", broker)
       );
     };
   }

@@ -14,6 +14,8 @@ For minikube image builds, see [project README](../../../../../README.md#startin
 
 ### Option A — Docker Compose
 
+Build via [`Dockerfile.dev`](Dockerfile.dev) runs **Checkstyle, PMD, tests, and JaCoCo** (same as CI) before the runtime image — Docker must be running on the host.
+
 ```bash
 docker compose up scheduler --build
 ```

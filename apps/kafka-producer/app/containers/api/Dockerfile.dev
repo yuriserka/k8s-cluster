@@ -1,8 +1,12 @@
+# syntax=docker/dockerfile:1
+
 FROM gradle:8.9-jdk21-alpine AS cache
 RUN mkdir -p /home/gradle/cache_home
 ENV GRADLE_USER_HOME=/home/gradle/cache_home
-COPY settings.gradle gradle.properties /home/gradle/java-code/
+COPY build.gradle settings.gradle gradle.properties /home/gradle/java-code/
+COPY config/ /home/gradle/java-code/config/
 COPY app/build.gradle /home/gradle/java-code/app/
+COPY app/core/build.gradle /home/gradle/java-code/app/core/
 COPY app/containers/build.gradle /home/gradle/java-code/app/containers/
 COPY app/containers/api/build.gradle /home/gradle/java-code/app/containers/api/
 WORKDIR /home/gradle/java-code
@@ -12,6 +16,14 @@ FROM gradle:8.9-jdk21-alpine AS builder
 COPY --from=cache /home/gradle/cache_home /home/gradle/.gradle
 COPY . /usr/src/java-code/
 WORKDIR /usr/src/java-code
+
+# Static analysis — same as .pipeline lint
+RUN gradle codeChecks -x bootJar --no-daemon
+
+# Tests + coverage — same as .pipeline test; Testcontainers uses host docker.sock
+RUN --mount=type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
+    gradle test -x bootJar --no-daemon
+
 RUN gradle :app:containers:api:bootJar --no-daemon
 
 FROM eclipse-temurin:21-jre-alpine
