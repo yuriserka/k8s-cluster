@@ -4,10 +4,7 @@ from typing import Optional
 import logging
 import time
 
-from kafkaworker.core.logging.trace_context import (
-    bind_mock_trace_context,
-    reset_trace_context,
-)
+from kafkaworker.core.logging.trace_context import work_unit_trace_context
 
 
 class ScheduleJobType(Enum):
@@ -41,23 +38,23 @@ class ScheduleJob:
         raise NotImplementedError()
 
     async def run(self):
-        bind_mock_trace_context()
-        try:
+        with work_unit_trace_context(f'scheduler.job.{self.name}'):
             start_time = time.time()
             logger.info(f'starting to run job {self.name}')
-            await self.execute()
-            elapsed_time = time.time() - start_time
-            logger.info(f'job {self.name} completed successfully in {elapsed_time} seconds')
-        except Exception as e:
-            elapsed_time = time.time() - start_time
-            logger.error(
-                f'error running job {self.name}: {e}',
-                extra={'job': self.name, 'elapsed_time': elapsed_time},
-                exc_info=True
-            )
-            raise
-        finally:
-            reset_trace_context()
+            try:
+                await self.execute()
+                elapsed_time = time.time() - start_time
+                logger.info(
+                    f'job {self.name} completed successfully in {elapsed_time} seconds'
+                )
+            except Exception as e:
+                elapsed_time = time.time() - start_time
+                logger.error(
+                    f'error running job {self.name}: {e}',
+                    extra={'job': self.name, 'elapsed_time': elapsed_time},
+                    exc_info=True,
+                )
+                raise
 
     def __assert_valid(self, interval: Optional[int], cron: Optional[str]):
         if self.type == ScheduleJobType.INTERVAL:

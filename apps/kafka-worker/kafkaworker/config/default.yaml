@@ -8,3 +8,10 @@ KAFKA_CONSUMER_GROUP_ID: kafka-worker
 KAFKA_TOPICS_EXAMPLE_EVENTS: local-example-events
 
 AWS_ENDPOINT_URL: http://localhost:4566
+
+KAFKA_WORKER_LOG_TRACE_CONTEXT_ENABLED: true
+
+# OpenTelemetry (env overrides; set in vault .env for Grafana compose).
+OTEL_TRACES_EXPORTER: none
+OTEL_EXPORTER_OTLP_ENDPOINT: ''
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ''

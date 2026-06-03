@@ -11,3 +11,4 @@ django-concurrency
 django-apscheduler
 jsondiff
 django-prometheus
+opentelemetry-api>=1.27,<2
