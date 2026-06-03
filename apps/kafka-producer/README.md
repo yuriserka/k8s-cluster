@@ -1,63 +1,58 @@
 # Kafka Producer
 
-to run this app execute in this directory:
+Gradle multi-module app (Java **21**): **API** (HTTP → outbox), **scheduler** (outbox → Kafka), **migrate** (Flyway). Shared domain and persistence in `app/core`.
 
-**Note**: remember to do [this](../README.md#terminals) before execute the build
+## Containers
 
-```
-docker build -t producer-test:latest .
-```
+| Container | README | Role |
+|-----------|--------|------|
+| API | [app/containers/api/README.md](app/containers/api/README.md) | REST API, outbox writes |
+| Scheduler | [app/containers/scheduler/README.md](app/containers/scheduler/README.md) | Publishes outbox to Kafka |
+| Migrate | [app/containers/migrate/README.md](app/containers/migrate/README.md) | Flyway migrations (one-shot) |
 
-ensure that the image was created correctly:
+Each README covers **run** (env vars), **tests**, and **lint** for that piece.
 
-```
-minikube image ls --format table | grep "producer-test"
-```
+## Quick start (all services locally)
 
-then in root directory
+From this directory, with [minikube docker-env](../../README.md#startingstoping) only if you build images for the cluster:
 
-```
-kubectl apply -f kafka-producer/kafka-producer.yaml
-```
-
-which expands to something like:
-
-```
-kubectl apply -f k8s/configmap.yaml
-kubectl apply -f k8s/service.yaml
-kubectl apply -f k8s/deployment.yaml
+```bash
+docker compose up --build
 ```
 
-## Testing
+- API: http://localhost:8080  
+- Scheduler actuator: http://localhost:8081/actuator/health  
 
-Create a new topic called `example-topic` following the instructions in [kafka-admin](../kafka/README.md#admin)
+Create Kafka topic `example-topic` — [Kafka infra README](../infra/kafka/README.md).
 
-then do the following to port-forward to container:
+## Full pipeline (cluster)
 
-```
-kubectl get po | grep "kafka-producer"
-
-kubectl port-forward kafka-producer-<HASH> 8085:8080
-```
-
-and send a request with:
-
-```
-curl --location 'http://localhost:8085/message/produce/<YOUR_PARAM_VALUE>'
+```bash
+cd scripts
+python pipeline_parser.py kafka-producer
 ```
 
-the response must be in this format
+See [scripts/README.md](../../scripts/README.md).
 
-```json
-{
-    "id": "ea96fa55-9afa-4b4b-bab3-82ca4b0f625c",
-    "type": "test",
-    "timestamp": "2024-01-26T15:48:58.382264915",
-    "data": {
-        "userId": "f260a06e-a851-418d-b4cd-9f8ac56f9939",
-        "name": "<YOUR_PARAM_VALUE>"
-    }
-}
+## Repo-wide Gradle tasks
+
+From `apps/kafka-producer/`:
+
+| Step | Command |
+|------|---------|
+| Lint (all modules) | `./gradlew check -x test` |
+| Test (all modules) | `./gradlew test -x bootJar` *(needs `DATABASE_*` — see API README)* |
+| Build JARs | `./gradlew bootJar` |
+
+## End-to-end test (cluster)
+
+After deploy to `dev`:
+
+```bash
+minikube kubectl -- port-forward -n dev deployment/kafka-producer-api-dev 8085:8080
+
+curl 'http://localhost:8085/weather/current?city=London'
+curl 'http://localhost:8085/message/produce/alice'
 ```
 
-open kafka-admin and check if there is a new message for the topic
+Scheduler flushes the outbox to `example-topic`; verify in [Kafka UI](../infra/kafka-ui/README.md) or kafka-worker consumer logs.
