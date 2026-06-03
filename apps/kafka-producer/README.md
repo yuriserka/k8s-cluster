@@ -88,7 +88,7 @@ Minimum line coverage is enforced at **8%** per module (`jacocoTestCoverageVerif
 
 ### Docker Compose builds
 
-[`Dockerfile.dev`](app/containers/api/Dockerfile.dev) for api and scheduler each run a **scoped** `./gradlew :app:containers:<name>:codeChecks` (Checkstyle + PMD for that container plus `core`) during the image build. Tests are **not** run inside `docker build` — BuildKit cannot expose the host Docker socket to Testcontainers. Run `./gradlew test` on the host before compose when you want the same test gates as CI (JaCoCo report, verification, and aggregation run automatically there).
+[`Dockerfile.dev`](app/containers/api/Dockerfile.dev) for api and scheduler only compile the **bootJar** and produce a runtime image — no lint or tests during `docker build`. Run `./gradlew codeChecks` and `./gradlew test` on the host (or via CI) when you want those gates.
 
 ### Tests (Testcontainers)
 

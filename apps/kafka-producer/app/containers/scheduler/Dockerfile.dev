@@ -1,29 +1,10 @@
 # syntax=docker/dockerfile:1
 
-FROM gradle:8.9-jdk21-alpine AS cache
-RUN mkdir -p /home/gradle/cache_home
-ENV GRADLE_USER_HOME=/home/gradle/cache_home
-COPY build.gradle settings.gradle gradle.properties /home/gradle/java-code/
-COPY config/ /home/gradle/java-code/config/
-COPY app/build.gradle /home/gradle/java-code/app/
-COPY app/core/build.gradle /home/gradle/java-code/app/core/
-COPY app/containers/build.gradle /home/gradle/java-code/app/containers/
-COPY app/containers/scheduler/build.gradle /home/gradle/java-code/app/containers/scheduler/
-WORKDIR /home/gradle/java-code
-RUN gradle :app:containers:scheduler:clean :app:containers:scheduler:build -x bootJar --no-daemon
-
 FROM gradle:8.9-jdk21-alpine AS builder
-COPY --from=cache /home/gradle/cache_home /home/gradle/.gradle
-COPY . /usr/src/java-code/
 WORKDIR /usr/src/java-code
-
-# Static analysis — same as .pipeline lint
-RUN gradle :app:containers:scheduler:codeChecks -x bootJar --no-daemon
-
-# Tests need a Docker daemon during build; BuildKit cannot bind-mount /var/run/docker.sock.
-# Run `./gradlew test` on the host (see README) before compose when you want CI test gates locally.
-
-RUN gradle :app:containers:scheduler:bootJar --no-daemon
+COPY . .
+RUN --mount=type=cache,target=/home/gradle/.gradle \
+    gradle :app:containers:scheduler:bootJar --no-daemon
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /usr/src/java-app

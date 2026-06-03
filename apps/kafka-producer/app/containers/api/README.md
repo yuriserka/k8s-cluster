@@ -12,7 +12,7 @@ For minikube image builds, load Docker into minikube first — see [project READ
 
 ### Option A — Docker Compose (API + Postgres + Kafka)
 
-Starts dependencies and builds via [`Dockerfile.dev`](Dockerfile.dev). The build runs **Checkstyle and PMD for api + core** (`:app:containers:api:codeChecks`) before the runtime image. Run `./gradlew test` on the host first when you want CI test/JaCoCo gates — see [kafka-producer README](../../../README.md#docker-compose-builds).
+Starts dependencies and builds via [`Dockerfile.dev`](Dockerfile.dev) (bootJar only — no lint/tests in the image build). Run `./gradlew :app:containers:api:codeChecks` and `./gradlew test` on the host when you want CI gates — see [kafka-producer README](../../../README.md#repo-wide-gradle-tasks).
 
 ```bash
 docker compose up api --build
