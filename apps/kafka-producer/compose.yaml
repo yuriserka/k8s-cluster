@@ -1,3 +1,13 @@
+# Grafana OTLP: copy resources/vault/_admin/grafana/dev/.env.example → .env and set
+# ENDPOINT/HEADERS from Grafana Cloud → OpenTelemetry → Configure.
+# Host ports 5432/9092 conflict with kafka-worker compose — run one stack at a time.
+
+x-otel-vault-env-file: &otel-vault-env-file
+  ../../resources/vault/_admin/grafana/dev/.env
+
+x-app-env: &app-env
+  SPRING_PROFILE: local
+
 services:
   api:
     image: kafka-producer-api-local:latest
@@ -6,12 +16,25 @@ services:
       dockerfile: app/containers/api/Dockerfile.dev
     ports:
       - "8080:8080"
-    environment:
-      OTEL_JAVAAGENT_ENABLED: false
     depends_on:
       - kafka
       - postgres
-  
+    env_file:
+      - *otel-vault-env-file
+    environment:
+      <<: *app-env
+      OTEL_SERVICE_NAME: kafka-producer-api
+      OTEL_JAVAAGENT_ENABLED: "true"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    restart: always
+
   scheduler:
     image: kafka-producer-scheduler-local:latest
     build:
@@ -19,29 +42,48 @@ services:
       dockerfile: app/containers/scheduler/Dockerfile.dev
     ports:
       - "8081:8080"
-    environment:
-      OTEL_JAVAAGENT_ENABLED: false
     depends_on:
       - kafka
       - postgres
-  
+    env_file:
+      - *otel-vault-env-file
+    environment:
+      <<: *app-env
+      OTEL_SERVICE_NAME: kafka-producer-scheduler
+      OTEL_JAVAAGENT_ENABLED: "true"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+    restart: always
+
   kafka:
-    image: bitnami/kafka:4.0
+    image: bitnamilegacy/kafka:4.0.0-debian-12-r10
     ports:
       - "9092:9092"
     volumes:
-      - "kafka_data:/bitnami"
+      - kafka_data:/bitnami
     environment:
-      # KRaft settings
       KAFKA_CFG_NODE_ID: 0
       KAFKA_CFG_PROCESS_ROLES: controller,broker
       KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
-      # Listeners
       KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
       KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://:9092
       KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
       KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
 
   postgres:
     image: bitnami/postgresql:16
@@ -54,6 +96,14 @@ services:
       POSTGRESQL_PASSWORD: ysdcr
       POSTGRESQL_POSTGRES_PASSWORD: admin
       POSTGRESQL_DATABASE: kafka-producer
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
 
 volumes:
   kafka_data:

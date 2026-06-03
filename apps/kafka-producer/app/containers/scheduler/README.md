@@ -58,6 +58,10 @@ Same as the API container (scheduler shares [`application.yaml`](../../core/src/
 | `KAFKA_BOOTSTRAP_SERVERS` | `kafka:9092` |
 | `GEOCODING_URL` | `https://geocoding-api.open-meteo.com` |
 | `OPENMETEO_FORECAST_URL` | `https://api.open-meteo.com/v1/forecast` |
+| `OTEL_JAVAAGENT_ENABLED` | `true` in compose; entrypoint skips agent when `false` |
+| `OTEL_SERVICE_NAME` | `kafka-producer-scheduler` in compose |
+
+Grafana OTLP: same vault env file as API — [kafka-producer README](../../../README.md#grafana--opentelemetry-compose).
 
 Helm overrides: [`kube/dev/scheduler.yaml`](../../../kube/dev/scheduler.yaml).
 

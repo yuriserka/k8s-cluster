@@ -25,6 +25,28 @@ docker compose up --build
 
 Create Kafka topic `example-topic` — [Kafka infra README](../infra/kafka/README.md).
 
+**Port note:** Compose binds Postgres `5432` and Kafka `9092` on the host. Do not run [kafka-worker](../kafka-worker/compose.yaml) at the same time on those ports.
+
+## Grafana / OpenTelemetry (compose)
+
+Compose loads OTLP credentials and exporter settings from the same vault file as kafka-worker:
+
+`resources/vault/_admin/grafana/dev/.env` (copy from [`.env.example`](../../resources/vault/_admin/grafana/dev/.env.example) and set `OTEL_EXPORTER_OTLP_ENDPOINT` + `OTEL_EXPORTER_OTLP_HEADERS` from Grafana Cloud → your stack → OpenTelemetry → Configure).
+
+With `.env` in place:
+
+```bash
+docker compose up -d --build
+```
+
+- `OTEL_JAVAAGENT_ENABLED=true` in compose turns on the Java agent ([`docker-entrypoint.sh`](app/containers/docker-entrypoint.sh)).
+- Service names in Grafana: `kafka-producer-api`, `kafka-producer-scheduler`.
+- Metrics export is throttled via `OTEL_METRIC_EXPORT_INTERVAL` in the vault file (default 5 minutes).
+
+To run locally **without** Grafana, set `OTEL_JAVAAGENT_ENABLED: "false"` on api/scheduler in [`compose.yaml`](compose.yaml) or omit/empty the vault `.env` exporter vars.
+
+Verify: call the API, then check traces in Grafana Cloud for those service names.
+
 ## Full pipeline (cluster)
 
 ```bash

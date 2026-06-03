@@ -18,13 +18,17 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /usr/src/java-app
 COPY --from=builder /usr/src/java-code/app/containers/api/build/libs/*.jar ./api.jar
 ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.15.0/opentelemetry-javaagent.jar /app/opentelemetry-javaagent.jar
+COPY app/containers/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 EXPOSE 8080
 
 ENV SPRING_PROFILE=local
+ENV APP_JAR=api.jar
 ENV OTEL_SERVICE_NAME=kafka-producer-api
-ENV OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
-ENV OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
-ENV OTEL_JAVAAGENT_ENABLED=true
+ENV OTEL_TRACES_EXPORTER=none
+ENV OTEL_METRICS_EXPORTER=none
+ENV OTEL_LOGS_EXPORTER=none
+ENV OTEL_JAVAAGENT_ENABLED=false
 
-CMD ["java", "-javaagent:/app/opentelemetry-javaagent.jar", "-jar", "-Dspring.profiles.active=${SPRING_PROFILE}", "api.jar"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
