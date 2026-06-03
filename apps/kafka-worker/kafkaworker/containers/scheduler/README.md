@@ -12,13 +12,13 @@ For minikube image builds, see [project README](../../../../../README.md#startin
 
 ### Option A — Docker Compose
 
+Built from shared [`Dockerfile.dev`](../Dockerfile.dev) with `CONTAINER=scheduler`.
+
 ```bash
 docker compose up scheduler --build
 ```
 
-Requires Postgres (and typically API/consumer having written `example_events`). Scheduler command:
-
-`opentelemetry-instrument python manage.py start_scheduler`
+Requires Postgres (and typically API/consumer having written `example_events`). Scheduler command: `python manage.py start_scheduler` (OTEL wrapping via [`docker-entrypoint.sh`](../docker-entrypoint.sh) when vault OTLP is configured).
 
 ### Option B — Local venv
 

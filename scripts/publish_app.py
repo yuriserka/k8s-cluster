@@ -44,6 +44,10 @@ def read_env_file(env_file: str):
     with open(env_file) as secrets_file:
         lines = secrets_file.readlines()
         for line in lines:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            line = line.split('#', 1)[0]
             key, value = line.split('=', maxsplit=1)
             all_secrets[f"{key.upper()}"] = value.strip()
 

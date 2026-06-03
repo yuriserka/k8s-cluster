@@ -14,6 +14,8 @@ For minikube image builds, see [project README](../../../../../README.md#startin
 
 ### Option A — Docker Compose
 
+Built from shared [`Dockerfile.dev`](../Dockerfile.dev) with `CONTAINER=example-topic-consumer`.
+
 ```bash
 docker compose up example-topic-consumer --build
 ```

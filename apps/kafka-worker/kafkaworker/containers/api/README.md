@@ -12,7 +12,7 @@ For minikube image builds, load Docker into minikube first — see [project READ
 
 ### Option A — Docker Compose (API + Postgres + Kafka + LocalStack)
 
-Single image built from [`Dockerfile`](../../../Dockerfile); API service in [`compose.yaml`](../../../compose.yaml):
+Built from shared [`Dockerfile.dev`](../Dockerfile.dev) with `CONTAINER=api`; API service in [`compose.yaml`](../../../compose.yaml):
 
 ```bash
 docker compose up api --build

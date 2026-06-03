@@ -35,7 +35,9 @@ steps:
   dev-publish-api:
     kind: publish
     repo: kafka-worker-api
-    dockerfile: Dockerfile
+    dockerfile: kafkaworker/containers/Dockerfile
+    build_args:
+      CONTAINER: api
     env: dev
 
   dev-migrate:
@@ -50,13 +52,17 @@ steps:
   dev-publish-kafka-worker:
     kind: publish
     repo: kafka-worker-example-topic-consumer
-    dockerfile: Dockerfile
+    dockerfile: kafkaworker/containers/Dockerfile
+    build_args:
+      CONTAINER: example-topic-consumer
     env: dev
 
   dev-publish-scheduler:
     kind: publish
     repo: kafka-worker-scheduler
-    dockerfile: Dockerfile
+    dockerfile: kafkaworker/containers/Dockerfile
+    build_args:
+      CONTAINER: scheduler
     env: dev
 
   dev-deploy-api:
