@@ -1,79 +1,88 @@
 # Kafka Worker
 
-to run this app execute in this directory:
+Django app (Python **3.11**): **API** (HTTP + S3), **scheduler** (APScheduler / Postgres), **example-topic consumer** (Kafka → handlers). Shared logic in `kafkaworker/core`.
 
-**Note**: remember to do [this](../README.md#terminals) before execute the build
+## Containers
 
-```
-docker build -t worker-test:latest -f Dockerfile.example_events_worker .
-```
+| Container | README | Role |
+|-----------|--------|------|
+| API | [kafkaworker/containers/api/README.md](kafkaworker/containers/api/README.md) | REST/ASGI API, fetch-image, update-event |
+| Scheduler | [kafkaworker/containers/scheduler/README.md](kafkaworker/containers/scheduler/README.md) | Scheduled DB jobs |
+| Example-topic consumer | [kafkaworker/containers/example_events_worker/README.md](kafkaworker/containers/example_events_worker/README.md) | Kafka consumer for `example-topic` |
 
-ensure that the image was created correctly:
+Each README covers **run** (env vars), **tests**, and **lint**. All three use the same [`Dockerfile`](Dockerfile) (multi-stage: deps → test/lint → runtime).
 
-```
-minikube image ls --format table | grep "worker-test"
-```
+**Database migrations** are not a separate container; run `python manage.py migrate` with the API image (compose or pipeline `dev-migrate`). See [API README](kafkaworker/containers/api/README.md#option-a--docker-compose-api--postgres--kafka--localstack).
 
-then in root directory
+## Quick start (all services locally)
 
-```
-kubectl apply -f kafka-worker/kafka-worker.yaml
-```
+From this directory:
 
-which expands to something like:
-
-```
-kubectl apply -f k8s/configmap.yaml
-kubectl apply -f k8s/deployment.yaml
+```bash
+docker compose up --build
 ```
 
-## Testing
+| Service | URL / port |
+|---------|------------|
+| API | http://localhost:8000 |
+| Scheduler | port 8006 (process only) |
+| Consumer | port 8005 (process only) |
+| Postgres | localhost:5432 |
+| Kafka | localhost:9092 |
+| LocalStack | localhost:4566 |
 
-follow the steps in [Testing Producer](../kafka-producer/README.md#testing) to setup the topic and be able to send messages to it.
+Create Kafka topic `example-topic` — [Kafka infra README](../infra/kafka/README.md).
 
-follow the steps in [Testing PgAdmin](../postgres/README.md#testing) to setup the database which the events will be saved.
+**Port note:** Do not run [kafka-producer](../kafka-producer/compose.yaml) at the same time on **5432** / **9092**.
 
-then do the following to check if everything is working properly:
+**Vault files for compose:**
 
-```
-kubectl get po | grep "kafka-worker"
+| File | Used by |
+|------|---------|
+| [`resources/vault/_admin/grafana/dev/.env`](../resources/vault/_admin/grafana/dev/.env) | API, scheduler, consumer (OTLP) |
+| [`resources/vault/_admin/aws/dev/.env`](../resources/vault/_admin/aws/dev/.env) | LocalStack (`LOCALSTACK_AUTH_TOKEN`) |
 
-kubectl logs -f kafka-worker-<HASH> 8085:8080
-```
+Copy from the matching `.env.example` files before first run.
 
-in other terminal send a request for the producer:
+## Grafana / OpenTelemetry (compose)
 
-```
-curl --location 'http://localhost:8085/produce/<YOUR_PARAM_VALUE>'
-```
+Compose loads OTLP settings from `resources/vault/_admin/grafana/dev/.env` (copy from [`.env.example`](../resources/vault/_admin/grafana/dev/.env.example); set `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_HEADERS` from Grafana Cloud → OpenTelemetry → Configure).
 
-the response must be in this format
-
-```json
-{
-    "id": "ea96fa55-9afa-4b4b-bab3-82ca4b0f625c",
-    "type": "test",
-    "timestamp": "2024-01-26T15:48:58.382264915",
-    "data": {
-        "userId": "f260a06e-a851-418d-b4cd-9f8ac56f9939",
-        "name": "<YOUR_PARAM_VALUE>"
-    }
-}
+```bash
+docker compose up -d --build
 ```
 
-open kafka-admin and check if there is a new message for the topic
+- Commands use `opentelemetry-instrument` (see [`compose.yaml`](compose.yaml)).
+- Service names: `kafka-worker-api`, `kafka-worker-scheduler`, `kafka-worker-example-topic-consumer`.
+- Image defaults disable export (`OTEL_*_EXPORTER=none`); vault + compose env enable Grafana.
+- Log correlation: [`kafkaworker/config/telemetry.py`](kafkaworker/config/telemetry.py) and [`trace_context.py`](kafkaworker/core/logging/trace_context.py).
 
-with the terminal with the logs check if everything was executed without any errors
+To disable telemetry locally, unset vault OTLP values or set `KAFKA_WORKER_LOG_TRACE_CONTEXT_ENABLED=false`.
 
-open pgadmin
+## Full pipeline (cluster)
 
-and run the following query to check if the event was saved:
-
-```sql
-SELECT * FROM public.example_events ee
-ORDER BY ee.created_at DESC; 
+```bash
+cd scripts
+python pipeline_parser.py kafka-worker
 ```
 
-## TODO
+See [scripts/README.md](../scripts/README.md).
 
-understand how to create `initContainers` so I can apply migrations before the container start and avoid to manually setup everything by hand on postgres
+## Repo-wide tasks
+
+From `apps/kafka-worker/`:
+
+| Step | Command |
+|------|---------|
+| Venv | `python3 -m venv .venv && . .venv/bin/activate` |
+| Install | `pip install -r requirements.txt -r requirements_dev.txt` |
+| Lint | `python -m flake8 kafkaworker` |
+| Test | `export $(cat ./db-credentials) && python -Wa manage.py test` *(pipeline Postgres on **5433**)* |
+| Docker build | `docker build -t kafka-worker-local:latest .` *(runs unit tests + flake8 in builder stage)* |
+
+## End-to-end test (with producer)
+
+1. Start kafka-producer compose and produce events — [kafka-producer README](../kafka-producer/README.md).
+2. Start kafka-worker compose (or deploy to `dev`).
+3. Port-forward API if needed: `minikube kubectl -- port-forward -n dev deployment/kafka-worker-api-dev 8000:8000`
+4. Verify consumer logs and `example_events` in Postgres — [consumer README](kafkaworker/containers/example_events_worker/README.md#end-to-end-check).
