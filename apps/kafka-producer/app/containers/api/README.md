@@ -59,6 +59,7 @@ minikube kubectl -- port-forward -n dev deployment/kafka-producer-api-dev 8085:8
 | `OPENMETEO_FORECAST_URL` | yes (`dev`) | `https://api.open-meteo.com/v1/forecast` | |
 | `OTEL_JAVAAGENT_ENABLED` | no | `true` (compose) / `false` (image default) | [`docker-entrypoint.sh`](../docker-entrypoint.sh): `false` skips `-javaagent` |
 | `OTEL_SERVICE_NAME` | no | `kafka-producer-api` | Set in compose |
+| `OTEL_RESOURCE_ATTRIBUTES` | no | `service.name=kafka-producer-api,...` | [`Dockerfile.dev`](Dockerfile.dev); aligns with `OTEL_SERVICE_NAME` |
 | `OTEL_EXPORTER_OTLP_*` | for Grafana | from vault `.env` | See [kafka-producer README](../../../README.md#grafana--opentelemetry-compose) |
 
 Helm overrides: [`kube/dev/api.yaml`](../../../kube/dev/api.yaml).

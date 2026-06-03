@@ -60,6 +60,7 @@ Same as the API container (scheduler shares [`application.yaml`](../../core/src/
 | `OPENMETEO_FORECAST_URL` | `https://api.open-meteo.com/v1/forecast` |
 | `OTEL_JAVAAGENT_ENABLED` | `true` in compose; entrypoint skips agent when `false` |
 | `OTEL_SERVICE_NAME` | `kafka-producer-scheduler` in compose |
+| `OTEL_RESOURCE_ATTRIBUTES` | `service.name=kafka-producer-scheduler,...` in [`Dockerfile.dev`](Dockerfile.dev) |
 
 Grafana OTLP: same vault env file as API — [kafka-producer README](../../../README.md#grafana--opentelemetry-compose).
 
