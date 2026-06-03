@@ -14,7 +14,7 @@ For minikube image builds, see [project README](../../../../../README.md#startin
 
 ### Option A — Docker Compose
 
-Build via [`Dockerfile.dev`](Dockerfile.dev) runs **Checkstyle, PMD, tests, and JaCoCo** (same as CI) before the runtime image — Docker must be running on the host.
+Build via [`Dockerfile.dev`](Dockerfile.dev) runs **Checkstyle and PMD for scheduler + core** (`:app:containers:scheduler:codeChecks`) before the runtime image. Run `./gradlew test` on the host first when you want CI test/JaCoCo gates — see [kafka-producer README](../../../README.md#docker-compose-builds).
 
 ```bash
 docker compose up scheduler --build
@@ -82,4 +82,10 @@ Report: `app/containers/scheduler/build/reports/tests/test/index.html`
 
 ---
 
-Lint (Checkstyle + PMD) is a **project-wide** task — run `./gradlew codeChecks` from [`apps/kafka-producer/`](../../../README.md), not per container.
+Lint (Checkstyle + PMD) for this container plus shared `core` code:
+
+```bash
+./gradlew :app:containers:scheduler:codeChecks
+```
+
+Project-wide lint (all modules): `./gradlew codeChecks` — see [kafka-producer README](../../../README.md#repo-wide-gradle-tasks).

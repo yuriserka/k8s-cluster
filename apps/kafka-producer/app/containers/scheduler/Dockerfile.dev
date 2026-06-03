@@ -18,11 +18,10 @@ COPY . /usr/src/java-code/
 WORKDIR /usr/src/java-code
 
 # Static analysis — same as .pipeline lint
-RUN gradle codeChecks -x bootJar --no-daemon
+RUN gradle :app:containers:scheduler:codeChecks -x bootJar --no-daemon
 
-# Tests + coverage — same as .pipeline test; Testcontainers uses host docker.sock
-RUN --mount=type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
-    gradle test -x bootJar --no-daemon
+# Tests need a Docker daemon during build; BuildKit cannot bind-mount /var/run/docker.sock.
+# Run `./gradlew test` on the host (see README) before compose when you want CI test gates locally.
 
 RUN gradle :app:containers:scheduler:bootJar --no-daemon
 

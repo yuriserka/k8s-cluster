@@ -26,6 +26,14 @@ tasks.register('codeChecks') {
 }
 
 gradle.projectsEvaluated {
+    tasks.named('codeChecks').configure {
+        rootProject.allprojects.findAll { project ->
+            project != rootProject && project.subprojects.isEmpty() && project.tasks.findByName('codeChecks')
+        }.each { project ->
+            dependsOn project.tasks.named('codeChecks')
+        }
+    }
+
     def coverageReport = tasks.named('testCodeCoverageReport')
     subprojects.each { project ->
         project.tasks.matching { it.name == 'test' }.configureEach {

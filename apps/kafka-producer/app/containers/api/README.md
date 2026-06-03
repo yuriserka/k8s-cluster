@@ -12,7 +12,7 @@ For minikube image builds, load Docker into minikube first — see [project READ
 
 ### Option A — Docker Compose (API + Postgres + Kafka)
 
-Starts dependencies and builds via [`Dockerfile.dev`](Dockerfile.dev). The build runs **Checkstyle, PMD, tests, and JaCoCo** (same as CI) before the runtime image — Docker must be running on the host.
+Starts dependencies and builds via [`Dockerfile.dev`](Dockerfile.dev). The build runs **Checkstyle and PMD for api + core** (`:app:containers:api:codeChecks`) before the runtime image. Run `./gradlew test` on the host first when you want CI test/JaCoCo gates — see [kafka-producer README](../../../README.md#docker-compose-builds).
 
 ```bash
 docker compose up api --build
@@ -90,4 +90,10 @@ Report: `app/containers/api/build/reports/tests/test/index.html`
 
 ---
 
-Lint (Checkstyle + PMD) is a **project-wide** task — run `./gradlew codeChecks` from [`apps/kafka-producer/`](../../../README.md), not per container.
+Lint (Checkstyle + PMD) for this container plus shared `core` code:
+
+```bash
+./gradlew :app:containers:api:codeChecks
+```
+
+Project-wide lint (all modules): `./gradlew codeChecks` — see [kafka-producer README](../../../README.md#repo-wide-gradle-tasks).

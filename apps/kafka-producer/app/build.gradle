@@ -112,11 +112,11 @@ subprojects {
         dependsOn jacocoTestCoverageVerification
     }
 
-    afterEvaluate {
-        rootProject.tasks.named('codeChecks').configure {
-            dependsOn tasks.withType(Checkstyle)
-            dependsOn tasks.withType(Pmd)
-        }
+    tasks.register('codeChecks') {
+        group = 'verification'
+        description = "Runs Checkstyle and PMD for ${project.path}."
+        dependsOn tasks.withType(Checkstyle)
+        dependsOn tasks.withType(Pmd)
     }
 
     tasks.withType(Test).configureEach {

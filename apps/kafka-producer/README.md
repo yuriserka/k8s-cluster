@@ -62,7 +62,9 @@ From `apps/kafka-producer/`:
 
 | Step | Command |
 |------|---------|
-| Lint (Checkstyle + PMD) | `./gradlew codeChecks` |
+| Lint (Checkstyle + PMD, all modules) | `./gradlew codeChecks` |
+| Lint (api + core) | `./gradlew :app:containers:api:codeChecks` |
+| Lint (scheduler + core) | `./gradlew :app:containers:scheduler:codeChecks` |
 | Test (+ JaCoCo report, verification, aggregation) | `./gradlew test -x bootJar` |
 | Build JARs | `./gradlew bootJar` |
 
@@ -86,12 +88,7 @@ Minimum line coverage is enforced at **8%** per module (`jacocoTestCoverageVerif
 
 ### Docker Compose builds
 
-[`Dockerfile.dev`](app/containers/api/Dockerfile.dev) for api and scheduler runs the same gates as CI before producing the runtime image:
-
-1. `./gradlew codeChecks` (Checkstyle + PMD)
-2. `./gradlew test` (Testcontainers via mounted `docker.sock`; JaCoCo report, verification, and aggregation run automatically)
-
-**Docker must be running** on the host when you `docker compose build` or `docker compose up --build`. BuildKit is required (default in Docker Compose v2).
+[`Dockerfile.dev`](app/containers/api/Dockerfile.dev) for api and scheduler each run a **scoped** `./gradlew :app:containers:<name>:codeChecks` (Checkstyle + PMD for that container plus `core`) during the image build. Tests are **not** run inside `docker build` — BuildKit cannot expose the host Docker socket to Testcontainers. Run `./gradlew test` on the host before compose when you want the same test gates as CI (JaCoCo report, verification, and aggregation run automatically there).
 
 ### Tests (Testcontainers)
 

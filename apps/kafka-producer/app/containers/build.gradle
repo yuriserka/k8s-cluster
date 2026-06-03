@@ -5,3 +5,9 @@ jar {
 bootJar {
 	enabled = false
 }
+
+subprojects {
+	tasks.named('codeChecks').configure {
+		dependsOn project(':app:core').tasks.named('codeChecks')
+	}
+}
