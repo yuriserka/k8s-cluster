@@ -10,7 +10,7 @@ Django app (Python **3.11**): **API** (HTTP + S3), **scheduler** (APScheduler / 
 | Scheduler | [kafkaworker/containers/scheduler/README.md](kafkaworker/containers/scheduler/README.md) | Scheduled DB jobs |
 | Example-topic consumer | [kafkaworker/containers/example_events_worker/README.md](kafkaworker/containers/example_events_worker/README.md) | Kafka consumer for `example-topic` |
 
-Each README covers **run** (env vars), **tests**, and **lint**. All three use the same [`Dockerfile`](Dockerfile) (multi-stage: deps → test/lint → runtime).
+Each README covers **run** (env vars), **tests**, and **lint**. All three use the same [`Dockerfile`](Dockerfile) (multi-stage: deps → runtime). Lint and tests run via [`.pipeline`](.pipeline) or on the host — not during `docker build`.
 
 **Database migrations** are not a separate container; run `python manage.py migrate` with the API image (compose or pipeline `dev-migrate`). See [API README](kafkaworker/containers/api/README.md#option-a--docker-compose-api--postgres--kafka--localstack).
 
@@ -78,7 +78,7 @@ From `apps/kafka-worker/`:
 | Install | `pip install -r requirements.txt -r requirements_dev.txt` |
 | Lint | `python -m flake8 kafkaworker` |
 | Test | `export $(cat ./db-credentials) && python -Wa manage.py test` *(pipeline Postgres on **5433**)* |
-| Docker build | `docker build -t kafka-worker-local:latest .` *(runs unit tests + flake8 in builder stage)* |
+| Docker build | `docker build -t kafka-worker-local:latest .` |
 
 ## End-to-end test (with producer)
 

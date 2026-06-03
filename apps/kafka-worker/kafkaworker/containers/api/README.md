@@ -110,7 +110,7 @@ pip install -r requirements.txt -r requirements_dev.txt
 python -Wa manage.py test
 ```
 
-Unit tests also run in the [`Dockerfile`](../../../Dockerfile) `builder` stage (`unittest` + `flake8`).
+Run lint and tests on the host or via [`.pipeline`](../../../.pipeline) — not during `docker build`.
 
 ---
 
