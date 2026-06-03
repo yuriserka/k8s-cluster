@@ -31,3 +31,4 @@ ENV OTEL_SERVICE_NAME=kafka-worker
 ENV OTEL_TRACES_EXPORTER=none
 ENV OTEL_METRICS_EXPORTER=none
 ENV OTEL_LOGS_EXPORTER=none
+ENV OTEL_RESOURCE_ATTRIBUTES="service.name=kafka-worker,service.namespace=local,deployment.environment=local"
