@@ -5,7 +5,7 @@ steps:
 
   lint:
     cmd:
-      - "./gradlew check -x test"
+      - "./gradlew codeChecks"
 
   test:
     cmd:

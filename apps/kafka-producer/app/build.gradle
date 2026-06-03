@@ -111,6 +111,13 @@ subprojects {
         dependsOn jacocoTestCoverageVerification
     }
 
+    afterEvaluate {
+        rootProject.tasks.named('codeChecks').configure {
+            dependsOn tasks.withType(Checkstyle)
+            dependsOn tasks.withType(Pmd)
+        }
+    }
+
     tasks.withType(Test).configureEach {
         useJUnitPlatform()
         failFast = true

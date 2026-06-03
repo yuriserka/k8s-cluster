@@ -97,8 +97,4 @@ Report: `app/core/build/reports/tests/test/index.html`
 
 ---
 
-## Lint (migrate / core)
-
-```bash
-./gradlew :app:core:check -x test
-```
+Lint (Checkstyle + PMD) is a **project-wide** task — run `./gradlew codeChecks` from [`apps/kafka-producer/`](../../../README.md), not per module.

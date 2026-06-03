@@ -62,7 +62,7 @@ From `apps/kafka-producer/`:
 
 | Step | Command |
 |------|---------|
-| Lint (all modules) | `./gradlew check -x test` |
+| Lint | `./gradlew codeChecks` |
 | Test (all modules) | `./gradlew test -x bootJar` |
 | Build JARs | `./gradlew bootJar` |
 

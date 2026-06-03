@@ -10,19 +10,29 @@ public record OutboxEventDto(
     MessageBrokers messageBroker,
     JsonNode payload
 ) {
-    public static OutboxEventDto kafkaEvent(
-        String aggregateId,
-        EventTypes eventType,
-        JsonNode payload
-    ) {
-        return new OutboxEventDto(aggregateId, eventType, MessageBrokers.KAFKA, payload);
-    }
+  public static OutboxEventDto kafkaEvent(
+      String aggregateId,
+      EventTypes eventType,
+      JsonNode payload
+  ) {
+    return new OutboxEventDto(
+        aggregateId,
+        eventType,
+        MessageBrokers.KAFKA,
+        payload
+    );
+  }
 
-    public static OutboxEventDto sqsEvent(
-        String aggregateId,
-        EventTypes eventType,
-        JsonNode payload
-    ) {
-        return new OutboxEventDto(aggregateId,eventType,MessageBrokers.SQS,payload);
-    }
+  public static OutboxEventDto sqsEvent(
+      String aggregateId,
+      EventTypes eventType,
+      JsonNode payload
+  ) {
+    return new OutboxEventDto(
+        aggregateId,
+        eventType,
+        MessageBrokers.SQS,
+        payload
+    );
+  }
 }

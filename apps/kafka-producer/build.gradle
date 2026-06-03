@@ -19,3 +19,8 @@ reporting {
         }
     }
 }
+
+tasks.register('codeChecks') {
+    group = 'verification'
+    description = 'Runs Checkstyle and PMD for the kafka-producer project.'
+}

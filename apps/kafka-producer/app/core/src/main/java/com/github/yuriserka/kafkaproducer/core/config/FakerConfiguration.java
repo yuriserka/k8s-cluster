@@ -1,14 +1,13 @@
 package com.github.yuriserka.kafkaproducer.core.config;
 
+import net.datafaker.Faker;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import net.datafaker.Faker;
-
 @Configuration
 public class FakerConfiguration {
-    @Bean
-    Faker faker() {
-        return new Faker();
-    }
+  @Bean
+  Faker faker() {
+    return new Faker();
+  }
 }

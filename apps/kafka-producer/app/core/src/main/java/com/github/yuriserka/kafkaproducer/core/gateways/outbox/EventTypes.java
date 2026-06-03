@@ -5,9 +5,9 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public enum EventTypes {
-    SEND_MESSAGE_TO_USER("example-topic"),
-    SEND_WEATHER_REPORT("example-topic");
+  SEND_MESSAGE_TO_USER("example-topic"),
+  SEND_WEATHER_REPORT("example-topic");
 
-    @Getter
-    private final String destination;
+  @Getter
+  private final String destination;
 }

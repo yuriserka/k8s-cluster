@@ -90,12 +90,4 @@ Report: `app/containers/api/build/reports/tests/test/index.html`
 
 ---
 
-## Lint (this container only)
-
-Compiles and runs checks without tests:
-
-```bash
-./gradlew :app:containers:api:check -x test
-```
-
-Shared code in `:app:core` is on the compile classpath; fix core compile errors if this task fails.
+Lint (Checkstyle + PMD) is a **project-wide** task — run `./gradlew codeChecks` from [`apps/kafka-producer/`](../../../README.md), not per container.

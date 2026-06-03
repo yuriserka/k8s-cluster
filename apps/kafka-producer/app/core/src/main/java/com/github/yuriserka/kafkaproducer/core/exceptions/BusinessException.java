@@ -4,5 +4,5 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public abstract class BusinessException extends RuntimeException {
-    final String message;
+  final String message;
 }
