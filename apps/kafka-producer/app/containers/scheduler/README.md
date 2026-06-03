@@ -14,7 +14,7 @@ For minikube image builds, see [project README](../../../../../README.md#startin
 
 ### Option A — Docker Compose
 
-Build via [`Dockerfile.dev`](Dockerfile.dev) (bootJar only — no lint/tests in the image build). Run `./gradlew :app:containers:scheduler:codeChecks` and `./gradlew test` on the host when you want CI gates — see [kafka-producer README](../../../README.md#repo-wide-gradle-tasks).
+Build via shared [`Dockerfile.dev`](../Dockerfile.dev) with `CONTAINER=scheduler` (bootJar only — no lint/tests in the image build). Run `./gradlew :app:containers:scheduler:codeChecks` and `./gradlew test` on the host when you want CI gates — see [kafka-producer README](../../../README.md#repo-wide-gradle-tasks).
 
 ```bash
 docker compose up scheduler --build
@@ -29,7 +29,7 @@ Ensure the **API** (or another writer) has inserted outbox rows; the scheduler p
 ```bash
 ./gradlew :app:containers:scheduler:bootJar
 
-docker build -t kafka-producer-scheduler:local -f app/containers/scheduler/Dockerfile .
+docker build -t kafka-producer-scheduler:local -f app/containers/Dockerfile --build-arg CONTAINER=scheduler .
 docker run --rm -p 8081:8080 \
   -e SPRING_PROFILE=local \
   --network kafka-producer_default \
@@ -62,7 +62,7 @@ Same as the API container (scheduler shares [`application.yaml`](../../core/src/
 | `OPENMETEO_FORECAST_URL` | `https://api.open-meteo.com/v1/forecast` |
 | `OTEL_JAVAAGENT_ENABLED` | `true` in compose; entrypoint skips agent when `false` |
 | `OTEL_SERVICE_NAME` | `kafka-producer-scheduler` in compose |
-| `OTEL_RESOURCE_ATTRIBUTES` | `service.name=kafka-producer-scheduler,...` in [`Dockerfile.dev`](Dockerfile.dev) |
+| `OTEL_RESOURCE_ATTRIBUTES` | `service.name=kafka-producer-scheduler,...` in [`Dockerfile.dev`](../Dockerfile.dev) with `CONTAINER=scheduler` |
 
 Grafana OTLP: same vault env file as API — [kafka-producer README](../../../README.md#grafana--opentelemetry-compose).
 

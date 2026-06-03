@@ -12,7 +12,7 @@ For minikube image builds, load Docker into minikube first — see [project READ
 
 ### Option A — Docker Compose (API + Postgres + Kafka)
 
-Starts dependencies and builds via [`Dockerfile.dev`](Dockerfile.dev) (bootJar only — no lint/tests in the image build). Run `./gradlew :app:containers:api:codeChecks` and `./gradlew test` on the host when you want CI gates — see [kafka-producer README](../../../README.md#repo-wide-gradle-tasks).
+Starts dependencies and builds via shared [`Dockerfile.dev`](../Dockerfile.dev) with `CONTAINER=api` (bootJar only — no lint/tests in the image build). Run `./gradlew :app:containers:api:codeChecks` and `./gradlew test` on the host when you want CI gates — see [kafka-producer README](../../../README.md#repo-wide-gradle-tasks).
 
 ```bash
 docker compose up api --build
@@ -27,7 +27,7 @@ API: `http://localhost:8080`
 ```bash
 ./gradlew :app:containers:api:bootJar
 
-docker build -t kafka-producer-api:local -f app/containers/api/Dockerfile .
+docker build -t kafka-producer-api:local -f app/containers/Dockerfile --build-arg CONTAINER=api .
 docker run --rm -p 8080:8080 \
   -e SPRING_PROFILE=local \
   --network kafka-producer_default \
@@ -59,7 +59,7 @@ minikube kubectl -- port-forward -n dev deployment/kafka-producer-api-dev 8085:8
 | `OPENMETEO_FORECAST_URL` | yes (`dev`) | `https://api.open-meteo.com/v1/forecast` | |
 | `OTEL_JAVAAGENT_ENABLED` | no | `true` (compose) / `false` (image default) | [`docker-entrypoint.sh`](../docker-entrypoint.sh): `false` skips `-javaagent` |
 | `OTEL_SERVICE_NAME` | no | `kafka-producer-api` | Set in compose |
-| `OTEL_RESOURCE_ATTRIBUTES` | no | `service.name=kafka-producer-api,...` | [`Dockerfile.dev`](Dockerfile.dev); aligns with `OTEL_SERVICE_NAME` |
+| `OTEL_RESOURCE_ATTRIBUTES` | no | `service.name=kafka-producer-api,...` | [`Dockerfile.dev`](../Dockerfile.dev) with `CONTAINER=api`; aligns with `OTEL_SERVICE_NAME` |
 | `OTEL_EXPORTER_OTLP_*` | for Grafana | from vault `.env` | See [kafka-producer README](../../../README.md#grafana--opentelemetry-compose) |
 
 Helm overrides: [`kube/dev/api.yaml`](../../../kube/dev/api.yaml).

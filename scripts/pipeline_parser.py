@@ -48,6 +48,7 @@ class PublishStepArgs(NamedTuple):
     repo: str
     env: str
     dockerfile: str
+    build_args: dict = {}
 
 
 def execute_cli_command(command: str):
@@ -120,9 +121,12 @@ def handle_install_step(args: InstallStepArgs, temp_folder_path: str):
 def handle_publish_step(args: PublishStepArgs, temp_folder_path: str):
     print('Publishing app with args:', args)
     publish_script = os.path.join(SCRIPT_DIR, 'publish_app.py')
+    build_args_flag = ''
+    if args.build_args:
+        build_args_flag = f'-b {shlex.quote(json.dumps(args.build_args))} '
     return execute_cli_command(
         f'python {publish_script} -r {args.repo} -d {args.dockerfile} '
-        f'-p {temp_folder_path} -n {args.env} -k -t {args.env}'
+        f'{build_args_flag}-p {temp_folder_path} -n {args.env} -k -t {args.env}'
     )
 
 

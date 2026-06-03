@@ -88,7 +88,7 @@ Minimum line coverage is enforced at **8%** per module (`jacocoTestCoverageVerif
 
 ### Docker Compose builds
 
-[`Dockerfile.dev`](app/containers/api/Dockerfile.dev) for api and scheduler only compile the **bootJar** and produce a runtime image — no lint or tests during `docker build`. Run `./gradlew codeChecks` and `./gradlew test` on the host (or via CI) when you want those gates.
+Shared [`Dockerfile.dev`](app/containers/Dockerfile.dev) for api and scheduler — pass `CONTAINER=api` or `CONTAINER=scheduler` (see [`compose.yaml`](compose.yaml)). The build only compiles the **bootJar** and produces a runtime image; no lint or tests during `docker build`. Run `./gradlew codeChecks` and `./gradlew test` on the host (or via CI) when you want those gates.
 
 ### Tests (Testcontainers)
 

@@ -13,7 +13,9 @@ services:
     image: kafka-producer-api-local:latest
     build:
       context: .
-      dockerfile: app/containers/api/Dockerfile.dev
+      dockerfile: app/containers/Dockerfile.dev
+      args:
+        CONTAINER: api
     ports:
       - "8080:8080"
     depends_on:
@@ -39,7 +41,9 @@ services:
     image: kafka-producer-scheduler-local:latest
     build:
       context: .
-      dockerfile: app/containers/scheduler/Dockerfile.dev
+      dockerfile: app/containers/Dockerfile.dev
+      args:
+        CONTAINER: scheduler
     ports:
       - "8081:8080"
     depends_on:

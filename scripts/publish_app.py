@@ -7,16 +7,26 @@ from dockerfile_parse import DockerfileParser
 from repo_paths import REPO_ROOT, resolve_path
 
 
-def run_docker_build(image: str, dockerfile_abs: str, build_context: str, use_minikube_docker: bool) -> int:
+def run_docker_build(
+    image: str,
+    dockerfile_abs: str,
+    build_context: str,
+    use_minikube_docker: bool,
+    build_args: dict | None = None,
+) -> int:
     """Build from build_context using a relative Dockerfile path.
 
     Avoids passing WSL absolute paths to minikube image build / Docker Desktop,
     which often fails with: lstat /home/<user>: no such file or directory
     """
     dockerfile_rel = os.path.relpath(dockerfile_abs, build_context)
+    build_arg_flags = ''.join(
+        f' --build-arg {shlex.quote(f"{key}={value}")}'
+        for key, value in (build_args or {}).items()
+    )
     inner = (
         f'cd {shlex.quote(build_context)} && '
-        f'docker build -t {shlex.quote(image)} -f {shlex.quote(dockerfile_rel)} .'
+        f'docker build -t {shlex.quote(image)} -f {shlex.quote(dockerfile_rel)}{build_arg_flags} .'
     )
     if use_minikube_docker:
         inner = f'eval "$(minikube docker-env --shell bash)" && {inner}'
@@ -130,7 +140,8 @@ def main(
     namespace: str,
     intra_cluster: bool,
     path: str,
-    tag: str = None
+    tag: str = None,
+    build_args: dict | None = None,
 ) -> int:
     tag = tag or 'latest'
     image = f'{repository}-{namespace}:{tag}'
@@ -142,7 +153,11 @@ def main(
     instrumented = dockerfile_abs != original_dockerfile
 
     build_result = run_docker_build(
-        image, dockerfile_abs, build_context, use_minikube_docker=intra_cluster
+        image,
+        dockerfile_abs,
+        build_context,
+        use_minikube_docker=intra_cluster,
+        build_args=build_args,
     )
     if build_result == 0:
         if instrumented:
@@ -182,9 +197,10 @@ if __name__ == '__main__':
     path = args[args.index("-p") + 1]
     tag = args[args.index("-t") + 1] if "-t" in args else None
     intra_cluster = "-k" in args
+    build_args = json.loads(args[args.index("-b") + 1]) if "-b" in args else None
 
     exit_code = main(
-        repository, dockerfile_path, namespace, intra_cluster, path, tag
+        repository, dockerfile_path, namespace, intra_cluster, path, tag, build_args
     )
 
     if exit_code != 0:

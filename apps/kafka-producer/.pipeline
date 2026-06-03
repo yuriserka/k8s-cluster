@@ -32,13 +32,17 @@ steps:
   dev-publish-api:
     kind: publish
     repo: kafka-producer-api
-    dockerfile: app/containers/api/Dockerfile
+    dockerfile: app/containers/Dockerfile
+    build_args:
+      CONTAINER: api
     env: dev
 
   dev-publish-scheduler:
     kind: publish
     repo: kafka-producer-scheduler
-    dockerfile: app/containers/scheduler/Dockerfile
+    dockerfile: app/containers/Dockerfile
+    build_args:
+      CONTAINER: scheduler
     env: dev
 
   dev-deploy-api:
