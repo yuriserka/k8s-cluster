@@ -1,0 +1,21 @@
+plugins {
+    id 'jacoco-report-aggregation'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    jacocoAggregation project(':app:core')
+    jacocoAggregation project(':app:containers:api')
+    jacocoAggregation project(':app:containers:scheduler')
+}
+
+reporting {
+    reports {
+        testCodeCoverageReport(JacocoCoverageReport) {
+            testType = 'unit-test'
+        }
+    }
+}

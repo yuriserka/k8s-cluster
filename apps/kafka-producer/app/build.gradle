@@ -46,6 +46,71 @@ allprojects {
 }
 
 subprojects {
+    apply plugin: 'checkstyle'
+    apply plugin: 'pmd'
+    apply plugin: 'jacoco'
+
+    checkstyle {
+        toolVersion = "${checkstyleVersion}"
+        configFile = rootProject.file('config/checkstyle/checkstyle.xml')
+        maxWarnings = 0
+        maxErrors = 0
+    }
+
+    tasks.withType(Checkstyle).configureEach {
+        reports {
+            xml.required = false
+            html.required = true
+        }
+    }
+
+    pmd {
+        consoleOutput = true
+        toolVersion = "${pmdVersion}"
+        rulesMinimumPriority = 5
+        ruleSetFiles = files("${rootProject.projectDir}/config/pmd/ruleset.xml")
+        ruleSets = []
+    }
+
+    tasks.withType(Pmd).configureEach {
+        reports {
+            xml.required = false
+            html.required = true
+        }
+    }
+
+    jacoco {
+        toolVersion = "${jacocoToolVersion}"
+    }
+
+    tasks.named('test') {
+        finalizedBy 'jacocoTestReport'
+    }
+
+    tasks.named('jacocoTestReport') {
+        dependsOn test
+        reports {
+            xml.required = true
+            html.required = true
+        }
+    }
+
+    tasks.named('jacocoTestCoverageVerification') {
+        dependsOn jacocoTestReport
+        violationRules {
+            rule {
+                limit {
+                    // Baseline: smoke tests only (core ~19%, api ~11%, scheduler ~8%). Raise in later phases.
+                    minimum = 0.08
+                }
+            }
+        }
+    }
+
+    tasks.named('check') {
+        dependsOn jacocoTestCoverageVerification
+    }
+
     tasks.withType(Test).configureEach {
         useJUnitPlatform()
         failFast = true
