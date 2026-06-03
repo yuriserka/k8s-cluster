@@ -63,8 +63,18 @@ From `apps/kafka-producer/`:
 | Step | Command |
 |------|---------|
 | Lint (all modules) | `./gradlew check -x test` |
-| Test (all modules) | `./gradlew test -x bootJar` *(needs `DATABASE_*` — see API README)* |
+| Test (all modules) | `./gradlew test -x bootJar` |
 | Build JARs | `./gradlew bootJar` |
+
+### Tests (Testcontainers)
+
+Integration tests start a **Postgres container via Testcontainers** ([docs](https://java.testcontainers.org/)) — no external database or `db-credentials` file is required. Docker must be running.
+
+**Docker Engine 29+ (Docker Desktop 4.52+):** Requires Testcontainers **2.x** (pinned via `testcontainersVersion` in `gradle.properties`). Spring Boot 3.3.x would otherwise pull 1.19.x, which fails with `Could not find a valid Docker environment` / HTTP 400 on the Unix socket.
+
+**WSL + Docker Desktop:** If the Unix socket still fails, enable **“Expose daemon on tcp://localhost:2375 without TLS”** in Docker Desktop → Settings → General and set `export DOCKER_HOST=tcp://localhost:2375` ([WSL docs](https://java.testcontainers.org/supported_docker_environment/windows/)).
+
+**Linux CI / native Docker:** Uses the default Unix socket; no extra configuration.
 
 ## End-to-end test (cluster)
 

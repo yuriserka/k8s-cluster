@@ -9,6 +9,7 @@ buildscript {
 
 plugins {
     id "org.flywaydb.flyway" version "${flywayVersion}"
+    id 'java-test-fixtures'
 }
 
 jar {
@@ -20,7 +21,7 @@ bootJar {
 }
 
 dependencies {
-	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+	implementation "org.springframework.cloud:spring-cloud-starter-openfeign:${springCloudOpenfeignVersion}"
 	implementation "org.springframework.boot:spring-boot-starter-data-jpa:${springBootVersion}"
 
 	implementation "org.hibernate.orm:hibernate-envers:${hibernateVersion}"
@@ -28,7 +29,10 @@ dependencies {
 	implementation "io.hypersistence:hypersistence-utils-hibernate-63:${hypersistenceUtilsVersion}"
 
 	implementation "org.flywaydb:flyway-database-postgresql:${flywayVersion}"
-	runtimeOnly  "org.postgresql:postgresql"
+	runtimeOnly "org.postgresql:postgresql:${postgresqlVersion}"
 
-	testImplementation "org.testcontainers:postgresql"
+	testFixturesApi "org.testcontainers:testcontainers:${testcontainersVersion}"
+	testFixturesApi "org.testcontainers:testcontainers-postgresql:${testcontainersVersion}"
+	testFixturesApi "org.springframework.boot:spring-boot-testcontainers:${springBootVersion}"
+	testFixturesImplementation "org.springframework.boot:spring-boot-starter-test:${springBootVersion}"
 }

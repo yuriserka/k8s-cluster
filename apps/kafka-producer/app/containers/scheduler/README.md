@@ -70,13 +70,9 @@ Helm overrides: [`kube/dev/scheduler.yaml`](../../../kube/dev/scheduler.yaml).
 
 ## Tests (this container only)
 
-```bash
-export DATABASE_USER=test
-export DATABASE_PASSWORD=test
-export DATABASE_HOST=localhost
-export DATABASE_NAME=kafka-producer
-export DATABASE_PORT=5434
+Uses **Testcontainers Postgres** — Docker required. See [kafka-producer README](../../../README.md#tests-testcontainers).
 
+```bash
 ./gradlew :app:containers:scheduler:test -x bootJar
 ```
 

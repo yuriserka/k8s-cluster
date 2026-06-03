@@ -80,18 +80,9 @@ curl http://localhost:8080/actuator/health
 
 ## Tests (this container only)
 
-Uses Spring profile `test` and `DATABASE_*` (same as pipeline Postgres on host port **5434**).
-
-Start test Postgres (or use pipeline `services` once), then:
+Uses Spring profile `test` with **Testcontainers Postgres** (no external database). Docker must be running — see [kafka-producer README](../../../README.md#tests-testcontainers) for WSL/Docker Desktop setup.
 
 ```bash
-# From repo root — example credentials matching .pipeline
-export DATABASE_USER=test
-export DATABASE_PASSWORD=test
-export DATABASE_HOST=localhost
-export DATABASE_NAME=kafka-producer
-export DATABASE_PORT=5434
-
 ./gradlew :app:containers:api:test -x bootJar
 ```
 
