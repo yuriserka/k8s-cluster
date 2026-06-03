@@ -1,32 +1,116 @@
+x-kafka-worker-build: &kafka-worker-build
+  context: .
+  dockerfile: ./Dockerfile
+
+x-kafka-worker-image: &kafka-worker-image
+  image: kafka-worker-local:latest
+  build: *kafka-worker-build
+
+x-database-env: &database-env
+  DJANGO_SETTINGS_MODULE: kafkaworker.config.settings
+  DATABASE_HOST: postgres
+  DATABASE_USER: ysdcr
+  DATABASE_PASSWORD: ysdcr
+  DATABASE_NAME: kafka-worker
+  DATABASE_PORT: "5432"
+
+x-aws-env: &aws-env
+  AWS_ENDPOINT_URL: http://localstack:4566
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
+  AWS_DEFAULT_REGION: us-east-1
+
+x-otel-vault-env-file: &otel-vault-env-file
+  ../../resources/vault/_admin/grafana/dev/.env
+
 services:
   api:
-    image: kafka-worker-api-local:latest
-    build:
-      context: .
-      dockerfile: ./Dockerfile
+    <<: *kafka-worker-image
     ports:
       - "8000:8000"
     depends_on:
       - postgres
+      - localstack
+    env_file:
+      - *otel-vault-env-file
     environment:
-      - DATABASE_HOST=postgres
-      - AWS_ENDPOINT_URL=http://localstack:4566
-      - AWS_ACCESS_KEY_ID=test
-      - AWS_SECRET_ACCESS_KEY=test
-      - AWS_DEFAULT_REGION=us-east-1
+      <<: [*database-env, *aws-env]
+      OTEL_SERVICE_NAME: kafka-worker-api
     command:
-      - "python"
-      - "-m"
-      - "gunicorn"
-      - "kafkaworker.asgi:application"
-      - "-k"
-      - "uvicorn.workers.UvicornWorker"
-      - "--bind"
-      - "0.0.0.0:8000"
+      - opentelemetry-instrument
+      - python
+      - -m
+      - gunicorn
+      - kafkaworker.asgi:application
+      - -k
+      - uvicorn.workers.UvicornWorker
+      - --bind
+      - 0.0.0.0:8000
     deploy:
       resources:
         limits:
-          memory: 1gb
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    restart: always
+
+  scheduler:
+    <<: *kafka-worker-image
+    ports:
+      - "8006:8006"
+    depends_on:
+      - postgres
+    env_file:
+      - *otel-vault-env-file
+    environment:
+      <<: [*database-env]
+      OTEL_SERVICE_NAME: kafka-worker-scheduler
+    command:
+      - opentelemetry-instrument
+      - python
+      - manage.py
+      - start_scheduler
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+    restart: always
+
+  example-topic-consumer:
+    <<: *kafka-worker-image
+    ports:
+      - "8005:8005"
+    depends_on:
+      - postgres
+      - kafka
+      - localstack
+    env_file:
+      - *otel-vault-env-file
+    environment:
+      <<: [*database-env, *aws-env]
+      OTEL_SERVICE_NAME: kafka-worker-example-topic-consumer
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_CONSUMER_GROUP_ID: kafka-worker
+      KAFKA_TOPICS_EXAMPLE_EVENTS: example-topic
+    command:
+      - opentelemetry-instrument
+      - python
+      - manage.py
+      - start_example_events_consumer
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
     restart: always
 
   postgres:
@@ -40,6 +124,38 @@ services:
       POSTGRESQL_PASSWORD: ysdcr
       POSTGRESQL_POSTGRES_PASSWORD: admin
       POSTGRESQL_DATABASE: kafka-worker
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+
+  kafka:
+    image: bitnami/kafka:4.0
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka_data:/bitnami
+    environment:
+      KAFKA_CFG_NODE_ID: 0
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
 
   localstack:
     container_name: localstack-main
@@ -49,11 +165,21 @@ services:
       - "127.0.0.1:4510-4559:4510-4559"
     environment:
       - DEBUG=0
-      - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN}
+      - LOCALSTACK_AUTH_TOKEN="ls-meBo7536-2266-WEPi-ZiVi-tigEfUWAdba2"
     volumes:
       - ./volume:/var/lib/localstack
       - "/var/run/docker.sock:/var/run/docker.sock"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
 
 volumes:
   postgres_data:
+    driver: local
+  kafka_data:
     driver: local
