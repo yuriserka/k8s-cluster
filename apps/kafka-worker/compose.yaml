@@ -23,6 +23,9 @@ x-aws-env: &aws-env
 x-otel-vault-env-file: &otel-vault-env-file
   ../../resources/vault/_admin/grafana/dev/.env
 
+x-aws-vault-env-file: &aws-vault-env-file
+  ../../resources/vault/_admin/aws/dev/.env
+
 services:
   api:
     <<: *kafka-worker-image
@@ -163,9 +166,10 @@ services:
     ports:
       - "127.0.0.1:4566:4566"
       - "127.0.0.1:4510-4559:4510-4559"
+    env_file:
+      - *aws-vault-env-file
     environment:
-      - DEBUG=0
-      - LOCALSTACK_AUTH_TOKEN="ls-meBo7536-2266-WEPi-ZiVi-tigEfUWAdba2"
+      DEBUG: "0"
     volumes:
       - ./volume:/var/lib/localstack
       - "/var/run/docker.sock:/var/run/docker.sock"
