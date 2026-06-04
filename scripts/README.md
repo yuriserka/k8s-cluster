@@ -1,6 +1,6 @@
 # Scripts
 
-Python helpers that simulate a CI/CD pipeline locally: build images, run tests against Docker services, migrate databases in the cluster, and deploy apps with Helm.
+Python helpers that simulate a CI/CD pipeline locally: build images, run tests (Testcontainers Postgres), migrate databases in the cluster, and deploy apps with Helm.
 
 **Run every command from this directory** (`scripts/`). Paths are resolved via [`repo_paths.py`](repo_paths.py) (`SCRIPT_DIR` = this folder, `REPO_ROOT` = repository root), so scripts work regardless of the current working directory inside a pipeline temp folder.
 
@@ -30,15 +30,15 @@ For cluster workflows, start infra from the [project README](../README.md) first
 
 ## Typical workflow
 
-### Local pipeline (tests, lint, local Postgres)
+### Local pipeline (tests, lint, publish, deploy)
 
-Uses the `services` and `steps` sections in `../apps/<repo>/.pipeline`. Starts Docker dependencies (for example a Postgres container on port 5433), then runs every step in order.
+Uses the `steps` section in `../apps/<repo>/.pipeline`. **Test steps** start Postgres via Testcontainers in the test process — **kafka-producer** (`./gradlew test`) and **kafka-worker** (`manage.py test`) — so no `.pipeline` `services` block is needed. When minikube docker-env is active in the shell, Testcontainers use Docker Desktop for the **`test`** step (see step kinds below); **publish** steps still build into minikube via `-k`.
 
 ```bash
 python pipeline_parser.py kafka-worker
 ```
 
-On success or failure, pipeline services are removed and the temp copy `tmp-<repo>-pipeline/` is deleted.
+On success or failure, any containers started from the app's `.pipeline` `services` block are removed, and the temp copy `tmp-<repo>-pipeline/` is deleted.
 
 **Image tags in the pipeline:** publish and install steps use the step `env` value as the Docker/Helm tag (e.g. `env: dev` → `kafka-worker-api-dev:dev`). Each pipeline run overwrites that tag in minikube instead of creating a new timestamp tag per run.
 
@@ -116,7 +116,55 @@ Defined in each app's `apps/<repo>/.pipeline`:
 | `publish` | Calls `publish_app.py` with `-t` set to the step `env` (same as `-n`) |
 | `install` | Calls `install_app.py` with `-t` set to the step `env` |
 
-**Services** (top of `.pipeline`): Docker containers started before steps; env written to `output_file` for app commands (used by `test`, not by `dev-migrate`).
+### Pipeline `services` (optional)
+
+An app's [`.pipeline`](../apps/) file can define an optional top-level **`services:`** block. This is **not** Docker Compose (`compose.yaml`) and **not** a Kubernetes Service — it is a **pipeline-only** mechanism for starting Docker containers before `steps` run.
+
+[`pipeline_parser.py`](pipeline_parser.py) handles each service entry like this:
+
+1. **`docker run -d`** with a fixed container name `{repo}-{service_name}` (e.g. `kafka-worker-pgsql_database`)
+2. **Port mapping** from `image_port_map` (host port → container port)
+3. **Wait** until Postgres is ready (`pg_isready`), when the image is Postgres
+4. **Write env vars** to `output_file` (e.g. `./db-credentials`) from the `env_vars` map — typically `KEY=value` lines for shell `export $(cat ./db-credentials)`
+5. Run **`steps`**; later commands read that file or connect to the mapped host port
+6. **Remove** all started service containers when the pipeline exits (success or failure)
+
+Example (historical kafka-worker pattern — no longer used; tests now use Testcontainers):
+
+```yaml
+services:
+  pgsql_database:
+    image: postgres:16.3
+    image_env_vars:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: kafka-worker
+    image_port_map: 5433:5432
+    env_vars:
+      DATABASE_USER: test
+      DATABASE_PASSWORD: test
+      DATABASE_HOST: localhost
+      DATABASE_NAME: kafka-worker
+      DATABASE_PORT: 5433
+    output_file: ./db-credentials
+
+steps:
+  test:
+    cmd:
+      - "export $(cat ./db-credentials) && python manage.py test"
+```
+
+| Field | Purpose |
+|-------|---------|
+| `image` | Docker image to run |
+| `image_env_vars` | `-e` flags passed to `docker run` (container init) |
+| `image_port_map` | `-p` host:container port map |
+| `env_vars` | Values written to `output_file` for app/test commands |
+| `output_file` | Path under the temp pipeline dir (e.g. `./db-credentials`) |
+
+**When to use `services`:** dependencies that pipeline steps need but that are **not** started inside the test/build process — for example a database before Testcontainers existed, or a broker the tests do not spin up themselves.
+
+**Current apps:** **kafka-producer** and **kafka-worker** do **not** define `services`. Their **test** steps start Postgres via **Testcontainers** inside the test process (Gradle / `manage.py test`), so no shared pipeline container or `db-credentials` file is required. You can still add `services` to a new app if its steps need external Docker deps that Testcontainers does not cover yet.
 
 ### `database_migration` (in-cluster)
 
