@@ -67,7 +67,7 @@ spec:
   template:
     metadata:
       annotations:
-        rollme: "E5AgZ"
+        rollme: "wT1to"
       labels:
         helm.sh/chart: dev-0.1.0
         app.kubernetes.io/name: dev

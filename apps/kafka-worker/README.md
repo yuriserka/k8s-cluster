@@ -77,10 +77,26 @@ From `apps/kafka-worker/`:
 | Venv | `python3 -m venv .venv && . .venv/bin/activate` |
 | Install | `pip install -r requirements.txt -r requirements_dev.txt` |
 | Lint | `python -m flake8 kafkaworker` |
-| Test | `export $(cat ./db-credentials) && python -Wa manage.py test` *(pipeline Postgres on **5433**)* |
+| Test | `python -Wa manage.py test kafkaworker.tests` |
 | Docker build (api) | `docker build -t kafka-worker-api-local:latest -f kafkaworker/containers/Dockerfile.dev --build-arg CONTAINER=api .` |
 | Docker build (scheduler) | `docker build -t kafka-worker-scheduler-local:latest -f kafkaworker/containers/Dockerfile.dev --build-arg CONTAINER=scheduler .` |
 | Docker build (consumer) | `docker build -t kafka-worker-example-topic-consumer-local:latest -f kafkaworker/containers/Dockerfile.dev --build-arg CONTAINER=example-topic-consumer .` |
+
+### Tests (Testcontainers)
+
+Tests start a **Postgres container via Testcontainers** ([Python docs](https://testcontainers-python.readthedocs.io/en/latest/)) — no external database or `db-credentials` file is required. Docker must be running.
+
+```bash
+. .venv/bin/activate
+pip install -r requirements.txt -r requirements_dev.txt
+python -Wa manage.py test kafkaworker.tests
+```
+
+`manage.py test` automatically uses [`test_settings.py`](kafkaworker/config/test_settings.py) (Testcontainers Postgres). Other commands use production settings.
+
+**WSL + Docker Desktop:** If the Unix socket fails, enable **“Expose daemon on tcp://localhost:2375 without TLS”** in Docker Desktop → Settings → General and set `export DOCKER_HOST=tcp://localhost:2375`.
+
+**Minikube docker-env:** Testcontainers/Ryuk needs Docker Desktop, not minikube’s Docker. [`postgres_testcontainer.py`](kafkaworker/tests/postgres_testcontainer.py) and [`pipeline_parser.py`](../../scripts/pipeline_parser.py) detect minikube docker-env and switch to `DOCKER_HOST=unix:///var/run/docker.sock` for tests.
 
 ## End-to-end test (with producer)
 

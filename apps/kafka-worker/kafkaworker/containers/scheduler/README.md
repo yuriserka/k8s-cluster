@@ -73,12 +73,11 @@ Helm overrides: [`kube/dev/scheduler.yaml`](../../../kube/dev/scheduler.yaml).
 
 ## Tests
 
-Same project suite as the API — see [API README](../api/README.md#tests).
+Same project suite as the API — see [kafka-worker README](../../../README.md#tests-testcontainers).
 
 ```bash
-export $(cat ./db-credentials)
 . .venv/bin/activate
-python -Wa manage.py test
+python -Wa manage.py test kafkaworker.tests
 ```
 
 ---
