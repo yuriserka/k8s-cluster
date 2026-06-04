@@ -56,6 +56,28 @@ def execute_cli_command(command: str):
     return os.system(command)
 
 
+def is_minikube_docker_env() -> bool:
+    if os.environ.get('MINIKUBE_ACTIVE_DOCKERD'):
+        return True
+    docker_host = os.environ.get('DOCKER_HOST', '')
+    cert_path = os.environ.get('DOCKER_CERT_PATH', '')
+    return docker_host.startswith('tcp://') and 'minikube' in cert_path
+
+
+def docker_desktop_env_prefix() -> str:
+    return (
+        'unset DOCKER_TLS_VERIFY DOCKER_CERT_PATH MINIKUBE_ACTIVE_DOCKERD; '
+        'DOCKER_HOST=unix:///var/run/docker.sock '
+    )
+
+
+def prepare_shell_command(cmd: str, step_name: str) -> str:
+    if step_name == 'test' and is_minikube_docker_env():
+        print('Using Docker Desktop for test step (minikube docker-env detected)')
+        return docker_desktop_env_prefix() + cmd
+    return cmd
+
+
 def finish_pipeline(exit_code: int, tempfolder: str, running_services: list):
     print(f'Pipeline {"finished" if exit_code == 0 else "failed"}')
     for service_id in running_services:
@@ -335,7 +357,7 @@ def main(repository: str):
         else:
             cmds = step_args.get('cmd', [])
             for cmd in cmds:
-                exit_code = execute_cli_command(cmd)
+                exit_code = execute_cli_command(prepare_shell_command(cmd, step_name))
                 if exit_code != 0:
                     finish_pipeline(exit_code, tempfolder, running_services)
 

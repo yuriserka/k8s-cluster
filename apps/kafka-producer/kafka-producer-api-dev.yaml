@@ -64,7 +64,7 @@ spec:
   template:
     metadata:
       annotations:
-        rollme: "IPnjS"
+        rollme: "Yqtn3"
       labels:
         helm.sh/chart: dev-0.1.0
         app.kubernetes.io/name: dev

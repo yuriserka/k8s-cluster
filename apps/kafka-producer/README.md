@@ -98,6 +98,8 @@ Integration tests start a **Postgres container via Testcontainers** ([docs](http
 
 **WSL + Docker Desktop:** If the Unix socket still fails, enable **“Expose daemon on tcp://localhost:2375 without TLS”** in Docker Desktop → Settings → General and set `export DOCKER_HOST=tcp://localhost:2375` ([WSL docs](https://java.testcontainers.org/supported_docker_environment/windows/)).
 
+**Minikube docker-env:** Testcontainers/Ryuk needs Docker Desktop, not minikube’s Docker. [`pipeline_parser.py`](../../scripts/pipeline_parser.py) detects minikube docker-env in the shell and switches to `DOCKER_HOST=unix:///var/run/docker.sock` for the **`test`** step only. For manual `./gradlew test`, unset minikube docker-env or use the same env override.
+
 **Linux CI / native Docker:** Uses the default Unix socket; no extra configuration.
 
 ## End-to-end test (cluster)

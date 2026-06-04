@@ -110,6 +110,7 @@ Defined in each app's `apps/<repo>/.pipeline`:
 | `kind` | Handler behavior |
 |--------|------------------|
 | *(none)* | Runs shell `cmd` list in the temp pipeline directory |
+| *(none)* `test` + minikube docker-env | Same as above; if `MINIKUBE_ACTIVE_DOCKERD` (or minikube `DOCKER_HOST`) is set, the parser prepends `DOCKER_HOST=unix:///var/run/docker.sock` so Testcontainers use Docker Desktop — publish steps still use minikube Docker via `-k` |
 | `credentials` | Writes vault secrets to `output_file` (`path` format: `database:<target>:<namespace>`) |
 | `database_migration` | In-cluster migrate via `kubectl run` (no port-forward); see below |
 | `publish` | Calls `publish_app.py` with `-t` set to the step `env` (same as `-n`) |
