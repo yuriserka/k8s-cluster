@@ -17,18 +17,12 @@ from kafkaworker.core.services.example_events_service import ExampleEventsServic
 logger = logging.getLogger(__name__)
 
 
-class SendMessageToUserHandler(
-    AbstractKafkaEventHandler[str, ExampleTopicEventDTO[SendMessageToUserEventPayloadDTO]]
-):
+class SendMessageToUserHandler(AbstractKafkaEventHandler[str, ExampleTopicEventDTO[SendMessageToUserEventPayloadDTO]]):
     def __init__(self, example_events_service: ExampleEventsService):
         super().__init__()
         self.example_events_service = example_events_service
 
-    async def handle(
-        self,
-        key: Optional[str],
-        event: ExampleTopicEventDTO[SendMessageToUserEventPayloadDTO]
-    ):
+    async def handle(self, key: Optional[str], event: ExampleTopicEventDTO[SendMessageToUserEventPayloadDTO]):
         if event.payload.username == "error":
             raise Exception(f"error event {event.id} received")
 

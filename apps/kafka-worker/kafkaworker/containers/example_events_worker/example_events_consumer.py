@@ -5,13 +5,8 @@ from kafkaworker.config import config
 from kafkaworker.core.models.example_event.payloads.kafka_message import (
     ExampleTopicEventDTO,
 )
-from kafkaworker.core.kafka.consumer.abstract_kafka_consumer import (
-    AbstractKafkaConsumer
-)
-from kafkaworker.core.factories.example_topic import (
-    ExampleTopicHandlerFactory,
-    ExampleTopicPayloadFactory
-)
+from kafkaworker.core.kafka.consumer.abstract_kafka_consumer import AbstractKafkaConsumer
+from kafkaworker.core.factories.example_topic import ExampleTopicHandlerFactory, ExampleTopicPayloadFactory
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +27,6 @@ class ExampleEventKafkaConsumer(AbstractKafkaConsumer[ExampleTopicEventDTO]):
             logger.error(
                 f"Error while handling message with key {key}: {e}",
                 exc_info=True,
-                extra={"event_message": message, "key": key}
+                extra={"event_message": message, "key": key},
             )
             raise e

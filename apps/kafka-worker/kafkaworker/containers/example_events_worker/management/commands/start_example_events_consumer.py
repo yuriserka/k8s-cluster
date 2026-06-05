@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = 'start example events consumer'
+    help = "start example events consumer"
 
     def handle(self, *args, **options):
         consumer = ExampleEventKafkaConsumer()

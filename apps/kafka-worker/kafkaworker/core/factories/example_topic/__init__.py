@@ -7,6 +7,6 @@ from kafkaworker.core.factories.example_topic.payload_factory import (
 )
 
 __all__ = [
-    'ExampleTopicHandlerFactory',
-    'ExampleTopicPayloadFactory',
+    "ExampleTopicHandlerFactory",
+    "ExampleTopicPayloadFactory",
 ]

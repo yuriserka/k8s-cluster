@@ -12,6 +12,4 @@ media_processing_service = MediaProcessingService(
     ),
 )
 
-example_events_service = ExampleEventsService(
-    example_event_repository=ExampleEventRepository()
-)
+example_events_service = ExampleEventsService(example_event_repository=ExampleEventRepository())

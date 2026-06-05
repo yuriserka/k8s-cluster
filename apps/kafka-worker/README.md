@@ -76,11 +76,31 @@ From `apps/kafka-worker/`:
 |------|---------|
 | Venv | `python3 -m venv .venv && . .venv/bin/activate` |
 | Install | `pip install -r requirements.txt -r requirements_dev.txt` |
-| Lint | `python -m flake8 kafkaworker` |
-| Test | `python -Wa manage.py test kafkaworker.tests` |
+| Lint + style (black + flake8) | `python code_checks.py` |
+| Test + coverage | `python run_tests.py` |
 | Docker build (api) | `docker build -t kafka-worker-api-local:latest -f kafkaworker/containers/Dockerfile.dev --build-arg CONTAINER=api .` |
 | Docker build (scheduler) | `docker build -t kafka-worker-scheduler-local:latest -f kafkaworker/containers/Dockerfile.dev --build-arg CONTAINER=scheduler .` |
 | Docker build (consumer) | `docker build -t kafka-worker-example-topic-consumer-local:latest -f kafkaworker/containers/Dockerfile.dev --build-arg CONTAINER=example-topic-consumer .` |
+
+### Quality reports
+
+After `python code_checks.py`:
+
+| Report | Path |
+|--------|------|
+| black (stdout on failure) | — |
+| flake8 (stdout) | — |
+
+After `python run_tests.py`:
+
+| Report | Path |
+|--------|------|
+| Coverage HTML | `reports/coverage/html/index.html` |
+| Coverage XML | `reports/coverage/coverage.xml` |
+
+Minimum line coverage is enforced at **8%** (`fail_under` in [`.coveragerc`](.coveragerc)); raise the floor as tests grow.
+
+Shared [`Dockerfile.dev`](kafkaworker/containers/Dockerfile.dev) builds runtime images only — no lint or tests during `docker build`. Run `code_checks.py` and `run_tests.py` on the host (or via [`.pipeline`](.pipeline)) when you want those gates.
 
 ### Tests (Testcontainers)
 
@@ -89,10 +109,10 @@ Tests start a **Postgres container via Testcontainers** ([Python docs](https://t
 ```bash
 . .venv/bin/activate
 pip install -r requirements.txt -r requirements_dev.txt
-python -Wa manage.py test kafkaworker.tests
+python run_tests.py
 ```
 
-`manage.py test` automatically uses [`test_settings.py`](kafkaworker/config/test_settings.py) (Testcontainers Postgres). Other commands use production settings.
+`run_tests.py` runs `manage.py test` with coverage report and verification. `manage.py test` automatically uses [`test_settings.py`](kafkaworker/config/test_settings.py) (Testcontainers Postgres). Other commands use production settings.
 
 **WSL + Docker Desktop:** If the Unix socket fails, enable **“Expose daemon on tcp://localhost:2375 without TLS”** in Docker Desktop → Settings → General and set `export DOCKER_HOST=tcp://localhost:2375`.
 

@@ -5,5 +5,5 @@ start_postgres_container()
 from kafkaworker.config.settings import *  # noqa: F401,F403,E402
 
 DATABASES = {
-    'default': get_database_config(),
+    "default": get_database_config(),
 }

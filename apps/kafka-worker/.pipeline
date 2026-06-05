@@ -10,11 +10,11 @@ steps:
 
   lint:
     cmd:
-      - ". .venv/bin/activate && python -m flake8 kafkaworker"
+      - ". .venv/bin/activate && python code_checks.py"
 
   test:
     cmd:
-      - ". .venv/bin/activate && python -Wa manage.py test kafkaworker.tests"
+      - ". .venv/bin/activate && python run_tests.py"
 
   dev-publish-api:
     kind: publish

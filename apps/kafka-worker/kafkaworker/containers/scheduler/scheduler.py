@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class Scheduler:
     def __init__(self, jobs: list[ScheduleJob]):
         self.scheduler = AsyncIOScheduler()
-        self.scheduler.add_jobstore(MemoryJobStore(), 'default')
+        self.scheduler.add_jobstore(MemoryJobStore(), "default")
         for job in jobs:
             if job.type == ScheduleJobType.INTERVAL:
                 self.scheduler.add_job(
@@ -32,13 +32,11 @@ class Scheduler:
 
     def _add_job_kwargs(self, job: ScheduleJob) -> dict:
         kwargs = {
-            'id': job.name,
-            'max_instances': job.max_instances,
+            "id": job.name,
+            "max_instances": job.max_instances,
         }
         if job.start_delay_seconds:
-            kwargs['next_run_time'] = datetime.now(timezone.utc) + timedelta(
-                seconds=job.start_delay_seconds
-            )
+            kwargs["next_run_time"] = datetime.now(timezone.utc) + timedelta(seconds=job.start_delay_seconds)
         return kwargs
 
     def start(self):

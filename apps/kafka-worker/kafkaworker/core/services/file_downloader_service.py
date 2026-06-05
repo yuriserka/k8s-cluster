@@ -39,10 +39,7 @@ class FileDownloaderService:
         return generator()
 
     async def _get_session(self):
-        if (
-            self.session is None
-            or time.monotonic() > self.connection_expires_at
-        ):
+        if self.session is None or time.monotonic() > self.connection_expires_at:
             if self.session is not None:
                 logger.info("[FileDownloaderService] Closing old session")
                 await self.session.close()
@@ -51,8 +48,5 @@ class FileDownloaderService:
             self.session = ClientSession()
 
         time_left = self.connection_expires_at - time.monotonic()
-        logger.info(
-            f"[FileDownloaderService] Using existing HTTP session "
-            f"with TTL {time_left} seconds"
-        )
+        logger.info(f"[FileDownloaderService] Using existing HTTP session " f"with TTL {time_left} seconds")
         return self.session

@@ -14,10 +14,7 @@ class MockTraceContextMiddleware(MiddlewareMixin):
     """Bind mock trace_id/span_id per HTTP request when OTLP traces are not configured."""
 
     def _use_mock_per_request(self) -> bool:
-        return (
-            is_log_trace_context_enabled()
-            and not is_otel_traces_export_configured()
-        )
+        return is_log_trace_context_enabled() and not is_otel_traces_export_configured()
 
     def process_request(self, request):
         if self._use_mock_per_request():

@@ -27,10 +27,7 @@ class S3Adapter:
                     file_content,
                     bucket_name,
                     key,
-                    Config=TransferConfig(
-                        multipart_threshold=10 * 1024 * 1024,
-                        max_concurrency=2
-                    )
+                    Config=TransferConfig(multipart_threshold=10 * 1024 * 1024, max_concurrency=2),
                 )
                 logger.info(f"File {key} uploaded to bucket {bucket_name}")
                 return f"s3://{bucket_name}/{key}"
@@ -47,12 +44,7 @@ class S3Adapter:
         logger.info(f"Uploading file {key} to bucket {bucket_name}")
         try:
             async with self._get_s3_client() as s3:
-                url = await self.s3_multipart_upload_service.upload_file(
-                    s3,
-                    file_content,
-                    bucket_name,
-                    key
-                )
+                url = await self.s3_multipart_upload_service.upload_file(s3, file_content, bucket_name, key)
             logger.info(f"File {key} uploaded to bucket {bucket_name} with url {url}")
             return url
         except Exception as e:
@@ -61,7 +53,7 @@ class S3Adapter:
 
     @asynccontextmanager
     async def _get_s3_client(self):
-        client = self._get_session().client('s3', endpoint_url=config.get('AWS_ENDPOINT_URL'))
+        client = self._get_session().client("s3", endpoint_url=config.get("AWS_ENDPOINT_URL"))
         async with client as s3:
             try:
                 yield s3
@@ -69,10 +61,7 @@ class S3Adapter:
                 gc.collect()
 
     def _get_session(self):
-        if (
-            self.session is None
-            or time.monotonic() > self.connection_expires_at
-        ):
+        if self.session is None or time.monotonic() > self.connection_expires_at:
             self.connection_expires_at = time.monotonic() + self.ttl
             self.session = aioboto3.Session()
 

@@ -105,7 +105,7 @@ Shared Django test suite (not isolated to this package). Uses **Testcontainers P
 . .venv/bin/activate
 pip install -r requirements.txt -r requirements_dev.txt
 
-python -Wa manage.py test kafkaworker.tests
+python run_tests.py
 ```
 
 Run lint and tests on the host or via [`.pipeline`](../../../.pipeline) — not during `docker build`.
@@ -114,8 +114,10 @@ Run lint and tests on the host or via [`.pipeline`](../../../.pipeline) — not 
 
 ## Lint
 
+Project-wide lint + style — see [kafka-worker README](../../../README.md#quality-reports):
+
 ```bash
 . .venv/bin/activate
 pip install -r requirements_dev.txt
-python -m flake8 kafkaworker
+python code_checks.py
 ```

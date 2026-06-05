@@ -8,8 +8,8 @@ from kafkaworker.core.logging.trace_context import work_unit_trace_context
 
 
 class ScheduleJobType(Enum):
-    INTERVAL = 'interval'
-    CRON = 'cron'
+    INTERVAL = "interval"
+    CRON = "cron"
 
 
 logger = logging.getLogger(__name__)
@@ -31,27 +31,25 @@ class ScheduleJob:
         self.start_delay_seconds = start_delay_seconds
         self.__assert_valid(interval_seconds, cron_expression)
         if start_delay_seconds is not None and start_delay_seconds < 0:
-            raise ValueError('start_delay_seconds must be non-negative')
+            raise ValueError("start_delay_seconds must be non-negative")
 
     @abstractmethod
     async def execute(self) -> None:
         raise NotImplementedError()
 
     async def run(self):
-        with work_unit_trace_context(f'scheduler.job.{self.name}'):
+        with work_unit_trace_context(f"scheduler.job.{self.name}"):
             start_time = time.time()
-            logger.info(f'starting to run job {self.name}')
+            logger.info(f"starting to run job {self.name}")
             try:
                 await self.execute()
                 elapsed_time = time.time() - start_time
-                logger.info(
-                    f'job {self.name} completed successfully in {elapsed_time} seconds'
-                )
+                logger.info(f"job {self.name} completed successfully in {elapsed_time} seconds")
             except Exception as e:
                 elapsed_time = time.time() - start_time
                 logger.error(
-                    f'error running job {self.name}: {e}',
-                    extra={'job': self.name, 'elapsed_time': elapsed_time},
+                    f"error running job {self.name}: {e}",
+                    extra={"job": self.name, "elapsed_time": elapsed_time},
                     exc_info=True,
                 )
                 raise
@@ -59,11 +57,11 @@ class ScheduleJob:
     def __assert_valid(self, interval: Optional[int], cron: Optional[str]):
         if self.type == ScheduleJobType.INTERVAL:
             if interval is None:
-                raise ValueError('Interval is required for interval jobs')
+                raise ValueError("Interval is required for interval jobs")
             self.interval_seconds = interval
         elif self.type == ScheduleJobType.CRON:
             if cron is None:
-                raise ValueError('Cron expression is required for cron jobs')
+                raise ValueError("Cron expression is required for cron jobs")
             self.cron_expression = cron
         else:
-            raise ValueError(f'Invalid job type: {self.type}')
+            raise ValueError(f"Invalid job type: {self.type}")

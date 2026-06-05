@@ -50,9 +50,7 @@ class AbstractKafkaConsumer(ABC, Generic[T]):
                 await self._consume_messages()
         except Exception as e:
             logger.error(
-                f"Error while polling messages from topic {self.topic} {e}",
-                exc_info=True,
-                extra={"topic": self.topic}
+                f"Error while polling messages from topic {self.topic} {e}", exc_info=True, extra={"topic": self.topic}
             )
         finally:
             logger.warning(f"Closing consumer for topic {self.topic}")
@@ -60,17 +58,13 @@ class AbstractKafkaConsumer(ABC, Generic[T]):
 
     async def _consume_messages(self):
         for topic_partition, messages in self.buffer.items():
-            await gather(
-                *[self._retry_message(message, topic_partition) for message in messages]
-            )
+            await gather(*[self._retry_message(message, topic_partition) for message in messages])
         pulled_messages = self.consumer.poll(max_records=5, timeout_ms=5000)
         for topic_partition, messages in pulled_messages.items():
-            await gather(
-                *[self._base_handle_message(message, topic_partition) for message in messages]
-            )
+            await gather(*[self._base_handle_message(message, topic_partition) for message in messages])
 
     async def _retry_message(self, retry_message: RetryableMessage[T], topic_partition: TopicPartition):
-        with work_unit_trace_context('kafka.retry'):
+        with work_unit_trace_context("kafka.retry"):
             await self._retry_message_inner(retry_message, topic_partition)
 
     async def _retry_message_inner(self, retry_message: RetryableMessage[T], topic_partition: TopicPartition):
@@ -82,7 +76,7 @@ class AbstractKafkaConsumer(ABC, Generic[T]):
             partition = topic_partition.partition
             logger.error(
                 f"Max retries reached for message from topic {topic}:{partition}: {parsed_message}",
-                extra={"event_message": parsed_message, "topic": topic}
+                extra={"event_message": parsed_message, "topic": topic},
             )
             self.consumer.commit()
             return
@@ -93,7 +87,7 @@ class AbstractKafkaConsumer(ABC, Generic[T]):
                     attempt_number=retry_message.retry_count,
                     base_delay=self.BASE_RETRY_DELAY_SECONDS,
                     max_delay=20,
-                    jitter=True
+                    jitter=True,
                 )
             )
             await self.handle_message(retry_message.key, parsed_message)
@@ -108,48 +102,39 @@ class AbstractKafkaConsumer(ABC, Generic[T]):
                         message=parsed_message,
                         offset=retry_message.offset,
                         retry_count=retry_message.retry_count + 1,
-                    )
-                ]
+                    ),
+                ],
             }
 
     async def _base_handle_message(self, message, topic_partition: TopicPartition):
-        with work_unit_trace_context('kafka.consume'):
+        with work_unit_trace_context("kafka.consume"):
             await self._base_handle_message_inner(message, topic_partition)
 
     async def _base_handle_message_inner(self, message, topic_partition: TopicPartition):
         topic = topic_partition.topic
         partition = topic_partition.partition
 
-        logger.info(
-            f"incoming message in topic {topic}:{partition} with key {message.key}: {message}"
-        )
+        logger.info(f"incoming message in topic {topic}:{partition} with key {message.key}: {message}")
         parsed_message = await self._parse_message(message, topic, partition)
         if not parsed_message:
             return
 
         try:
-            logger.info(
-                f"Consuming message from topic {topic}:{partition} with key {message.key}: {parsed_message}"
-            )
+            logger.info(f"Consuming message from topic {topic}:{partition} with key {message.key}: {parsed_message}")
             await self.handle_message(message.key, parsed_message)
             self.consumer.commit()
         except Exception as e:
             logger.error(
                 f"Error while consuming message from topic {topic}:{partition} {e}",
                 exc_info=True,
-                extra={"event_message": parsed_message, "topic": topic}
+                extra={"event_message": parsed_message, "topic": topic},
             )
             self.buffer = {
                 **self.buffer,
                 topic_partition: [
                     *self.buffer.get(topic_partition, []),
-                    RetryableMessage(
-                        key=message.key,
-                        message=parsed_message,
-                        offset=message.offset,
-                        retry_count=0
-                    )
-                ]
+                    RetryableMessage(key=message.key, message=parsed_message, offset=message.offset, retry_count=0),
+                ],
             }
 
     async def _parse_message(self, message, topic: str, partition: int) -> Optional[T]:
@@ -159,7 +144,7 @@ class AbstractKafkaConsumer(ABC, Generic[T]):
             logger.error(
                 f"Error while parsing message from topic {topic}:{partition} {e}",
                 exc_info=True,
-                extra={"raw_event_value": message.value, "topic": topic}
+                extra={"raw_event_value": message.value, "topic": topic},
             )
 
     @abstractmethod

@@ -85,12 +85,16 @@ SELECT * FROM public.example_events ee ORDER BY ee.created_at DESC;
 
 ## Tests
 
-Same project suite — see [API README](../api/README.md#tests).
+Same project suite — see [kafka-worker README](../../../README.md#quality-reports).
+
+```bash
+python run_tests.py
+```
 
 ---
 
 ## Lint
 
 ```bash
-python -m flake8 kafkaworker
+python code_checks.py
 ```

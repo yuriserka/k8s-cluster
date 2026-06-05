@@ -4,7 +4,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0002_add_payload_and_version_columns'),
+        ("core", "0002_add_payload_and_version_columns"),
     ]
 
     operations = [

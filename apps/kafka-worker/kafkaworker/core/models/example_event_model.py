@@ -5,10 +5,10 @@ from kafkaworker.core.models.mixins.pessimistic_locking_save_mixin import Pessim
 
 class ExampleEventModel(PessimisticLockingSaveMixin, models.Model):
     class Meta:
-        db_table = 'example_events'
+        db_table = "example_events"
 
-    LOG_IDENTIFIER_FIELD = 'event_id'
-    JSON_MERGE_FIELDS = frozenset({'payload'})
+    LOG_IDENTIFIER_FIELD = "event_id"
+    JSON_MERGE_FIELDS = frozenset({"payload"})
 
     version = AutoIncVersionField(null=True, default=1)
     id = models.AutoField(auto_created=True, primary_key=True, serialize=False)

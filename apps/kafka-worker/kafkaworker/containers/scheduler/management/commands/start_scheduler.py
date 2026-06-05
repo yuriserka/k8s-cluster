@@ -10,21 +10,21 @@ from kafkaworker.core.services.example_events_service import ExampleEventsServic
 logger = logging.getLogger(__name__)
 
 
-example_events_service = ExampleEventsService(
-    example_event_repository=ExampleEventRepository()
-)
+example_events_service = ExampleEventsService(example_event_repository=ExampleEventRepository())
 
 
 class Command(BaseCommand):
-    help = 'start kafka-worker-scheduler'
+    help = "start kafka-worker-scheduler"
 
     def handle(self, *args, **options):
         logger.info("starting kafka-worker-scheduler")
         asyncio.run(self.__run_scheduler())
 
     async def __run_scheduler(self) -> None:
-        scheduler = Scheduler([
-            UpdateEventJob(example_events_service=example_events_service),
-        ])
+        scheduler = Scheduler(
+            [
+                UpdateEventJob(example_events_service=example_events_service),
+            ]
+        )
         scheduler.start()
         await asyncio.Event().wait()

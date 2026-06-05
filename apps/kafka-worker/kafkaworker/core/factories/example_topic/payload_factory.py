@@ -4,7 +4,7 @@ from kafkaworker.core.models.example_event.payloads.kafka_message import (
 )
 from kafkaworker.core.factories.example_topic.dtos import (
     SendMessageToUserEventPayloadDTO,
-    SendWeatherReportEventPayloadDTO
+    SendWeatherReportEventPayloadDTO,
 )
 
 

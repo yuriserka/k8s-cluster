@@ -77,25 +77,24 @@ class PessimisticLockingSaveMixin(models.Model):
 
     def __setattr__(self, name, value):
         super().__setattr__(name, value)
-        if not name.startswith('_'):
-            dirty = self.__dict__.get('_dirty_fields')
+        if not name.startswith("_"):
+            dirty = self.__dict__.get("_dirty_fields")
             if dirty is not None and name in self._get_tracked_field_names():
                 dirty.add(name)
 
     @classmethod
     def _get_tracked_field_names(cls):
-        cached = cls.__dict__.get('_tracked_fields_cache')
+        cached = cls.__dict__.get("_tracked_fields_cache")
         if cached is not None:
             return cached
         tracked = frozenset(
-            field.name for field in cls._meta.local_concrete_fields
-            if not field.primary_key and field.name != 'version'
+            field.name for field in cls._meta.local_concrete_fields if not field.primary_key and field.name != "version"
         )
         cls._tracked_fields_cache = tracked
         return tracked
 
     def mark_field_as_dirty(self, field_name):
-        dirty = self.__dict__.get('_dirty_fields')
+        dirty = self.__dict__.get("_dirty_fields")
         if dirty is not None:
             dirty.add(field_name)
 
@@ -107,16 +106,16 @@ class PessimisticLockingSaveMixin(models.Model):
         in-memory instance (which may hold a stale value).
         """
         if explicit_update_fields is not None:
-            return [name for name in explicit_update_fields if name != 'version']
+            return [name for name in explicit_update_fields if name != "version"]
 
-        dirty = self.__dict__.get('_dirty_fields')
+        dirty = self.__dict__.get("_dirty_fields")
         if dirty is not None:
-            return [name for name in dirty if name != 'version']
+            return [name for name in dirty if name != "version"]
 
         return [
             field.name
             for field in type(self)._meta.local_concrete_fields
-            if not field.primary_key and field.name != 'version'
+            if not field.primary_key and field.name != "version"
         ]
 
     def refresh_from_db(self, using=None, fields=None, **kwargs):
@@ -133,9 +132,7 @@ class PessimisticLockingSaveMixin(models.Model):
         self._json_field_snapshots = {}
         for field_name in self.JSON_MERGE_FIELDS:
             value = self.__dict__.get(field_name)
-            self._json_field_snapshots[field_name] = (
-                dict(value) if isinstance(value, dict) else value
-            )
+            self._json_field_snapshots[field_name] = dict(value) if isinstance(value, dict) else value
 
     def build_lock_queryset(self, using):
         model_class = type(self)
@@ -168,9 +165,7 @@ class PessimisticLockingSaveMixin(models.Model):
         if not dirty_field_names:
             return self
 
-        update_field_names_with_version = list(
-            dict.fromkeys(dirty_field_names + ['version', 'updated_at'])
-        )
+        update_field_names_with_version = list(dict.fromkeys(dirty_field_names + ["version", "updated_at"]))
 
         model_name = type(self).__name__
         log_id = self._get_log_identifier()
@@ -178,13 +173,18 @@ class PessimisticLockingSaveMixin(models.Model):
         with transaction.atomic(using=using):
             logger.info(
                 "[%s] Saving %s under lock | memory_version=%s | dirty_fields=%s",
-                model_name, log_id, self.version, dirty_field_names,
+                model_name,
+                log_id,
+                self.version,
+                dirty_field_names,
             )
 
             locked_row = self.build_lock_queryset(using).get(pk=self.pk)
             logger.info(
                 "[%s] Locked %s | database_version=%s",
-                model_name, log_id, locked_row.version,
+                model_name,
+                log_id,
+                locked_row.version,
             )
 
             for field_name in dirty_field_names:
@@ -194,12 +194,16 @@ class PessimisticLockingSaveMixin(models.Model):
                 if field_name in self.JSON_MERGE_FIELDS:
                     snapshot_value = self._json_field_snapshots.get(field_name)
                     merged_value = merge_json_changes(
-                        snapshot_value, memory_value, database_value,
+                        snapshot_value,
+                        memory_value,
+                        database_value,
                     )
                     setattr(locked_row, field_name, merged_value)
                     logger.info(
                         "[%s] %s field=%s | diff_after_merge=%s",
-                        model_name, log_id, field_name,
+                        model_name,
+                        log_id,
+                        field_name,
                         compute_json_diff(snapshot_value, merged_value),
                     )
                 else:
@@ -214,7 +218,9 @@ class PessimisticLockingSaveMixin(models.Model):
 
             logger.info(
                 "[%s] Saved %s | new_version=%s",
-                model_name, log_id, locked_row.version,
+                model_name,
+                log_id,
+                locked_row.version,
             )
 
         self._sync_from_locked_row(locked_row)

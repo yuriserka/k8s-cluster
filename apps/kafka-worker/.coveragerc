@@ -1,0 +1,20 @@
+[run]
+source = kafkaworker
+omit =
+    */migrations/*
+    kafkaworker/tests/*
+    manage.py
+    test.py
+    .venv/*
+    */.venv/*
+
+[report]
+fail_under = 8
+show_missing = True
+skip_empty = True
+
+[html]
+directory = reports/coverage/html
+
+[xml]
+output = reports/coverage/coverage.xml

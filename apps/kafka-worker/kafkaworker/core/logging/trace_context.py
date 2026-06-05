@@ -16,21 +16,17 @@ from kafkaworker.config.telemetry import (
     is_otel_traces_export_configured,
 )
 
-_trace_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-    'trace_id', default=None
-)
-_span_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-    'span_id', default=None
-)
+_trace_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("trace_id", default=None)
+_span_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("span_id", default=None)
 
 
 def _get_otel_trace_and_span_ids() -> tuple[str, str]:
     if trace is None:
-        return '-', '-'
+        return "-", "-"
     ctx = trace.get_current_span().get_span_context()
     if not ctx.is_valid:
-        return '-', '-'
-    return format(ctx.trace_id, '032x'), format(ctx.span_id, '016x')
+        return "-", "-"
+    return format(ctx.trace_id, "032x"), format(ctx.span_id, "016x")
 
 
 def bind_mock_trace_context() -> None:
@@ -46,22 +42,22 @@ def reset_trace_context() -> None:
 
 def get_trace_id() -> str:
     if not is_log_trace_context_enabled():
-        return '-'
+        return "-"
     if is_otel_traces_export_configured():
         trace_id, _ = _get_otel_trace_and_span_ids()
         return trace_id
     v = _trace_id.get()
-    return v if v is not None else '-'
+    return v if v is not None else "-"
 
 
 def get_span_id() -> str:
     if not is_log_trace_context_enabled():
-        return '-'
+        return "-"
     if is_otel_traces_export_configured():
         _, span_id = _get_otel_trace_and_span_ids()
         return span_id
     v = _span_id.get()
-    return v if v is not None else '-'
+    return v if v is not None else "-"
 
 
 @contextmanager

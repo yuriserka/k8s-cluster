@@ -7,26 +7,26 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0001_create_example_events_table'),
+        ("core", "0001_create_example_events_table"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='exampleeventmodel',
-            name='user_id',
+            model_name="exampleeventmodel",
+            name="user_id",
         ),
         migrations.RemoveField(
-            model_name='exampleeventmodel',
-            name='username',
+            model_name="exampleeventmodel",
+            name="username",
         ),
         migrations.AddField(
-            model_name='exampleeventmodel',
-            name='payload',
+            model_name="exampleeventmodel",
+            name="payload",
             field=models.JSONField(default=dict),
         ),
         migrations.AddField(
-            model_name='exampleeventmodel',
-            name='version',
-            field=concurrency.fields.AutoIncVersionField(default=0, help_text='record revision number'),
+            model_name="exampleeventmodel",
+            name="version",
+            field=concurrency.fields.AutoIncVersionField(default=0, help_text="record revision number"),
         ),
     ]
