@@ -72,6 +72,10 @@ startupProbe:
 autoscaling:
   enabled: true
 
+terminationGracePeriodSeconds: 60
+
+lifecycle: {}
+
 # Additional volumes on the output Deployment definition.
 volumes: []
 # - name: foo
