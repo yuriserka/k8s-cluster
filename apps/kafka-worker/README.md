@@ -18,11 +18,19 @@ Each README covers **run** (env vars), **tests**, and **lint**. All three use sh
 
 From this directory:
 
+[`compose.yaml`](compose.yaml) is self-contained on network **`k8s-cluster-local`**. Infra uses the `infra` profile (enabled via [`.env`](.env)). Init script [`initdb/`](initdb/) creates database `kafka-worker` on first Postgres volume init.
+
+**This app only:**
+
 ```bash
 docker compose up --build
 ```
 
-[`compose.yaml`](compose.yaml) is self-contained: API, scheduler, consumer, Postgres, Kafka, and LocalStack on network **`k8s-cluster-local`**. Fixed container names let another compose project reuse the same infra without any cross-app config. Init script [`initdb/`](initdb/) creates database `kafka-worker` on first Postgres volume init.
+**Second app while infra is already running** (skip infra to avoid container-name conflicts):
+
+```bash
+COMPOSE_PROFILES= docker compose up -d --build --no-deps api scheduler example-topic-consumer
+```
 
 | Service | Host port |
 |---------|-----------|

@@ -5,7 +5,7 @@ FROM gradle:8.9-jdk21-alpine AS builder
 ARG CONTAINER
 WORKDIR /usr/src/java-code
 COPY . .
-RUN --mount=type=cache,target=/home/gradle/.gradle \
+RUN --mount=type=cache,id=gradle-home,target=/home/gradle/.gradle,sharing=locked \
     gradle :app:containers:${CONTAINER}:bootJar --no-daemon
 
 FROM eclipse-temurin:21-jre-alpine

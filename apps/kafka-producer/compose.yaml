@@ -1,5 +1,12 @@
+# Standalone: starts infra (postgres, kafka, localstack) plus app services.
+# When infra is already running on k8s-cluster-local, start apps only:
+#   COMPOSE_PROFILES= docker compose up -d --build --no-deps api scheduler
+
 x-otel-vault-env-file: &otel-vault-env-file
   ../../resources/vault/_admin/grafana/dev/.env
+
+x-aws-vault-env-file: &aws-vault-env-file
+  ../../resources/vault/_admin/aws/dev/.env
 
 x-app-env: &app-env
   SPRING_PROFILE: local
@@ -20,8 +27,12 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - kafka
-      - postgres
+      kafka:
+        condition: service_started
+        required: false
+      postgres:
+        condition: service_started
+        required: false
     env_file:
       - *otel-vault-env-file
     environment:
@@ -50,8 +61,12 @@ services:
     ports:
       - "8081:8080"
     depends_on:
-      - kafka
-      - postgres
+      kafka:
+        condition: service_started
+        required: false
+      postgres:
+        condition: service_started
+        required: false
     env_file:
       - *otel-vault-env-file
     environment:
@@ -71,6 +86,7 @@ services:
     restart: always
 
   kafka:
+    profiles: [infra]
     container_name: k8s-cluster-kafka
     image: bitnamilegacy/kafka:4.0.0-debian-12-r10
     ports:
@@ -100,6 +116,7 @@ services:
           memory: 256M
 
   postgres:
+    profiles: [infra]
     container_name: k8s-cluster-postgres
     image: bitnami/postgresql:16
     ports:
@@ -124,8 +141,37 @@ services:
           cpus: "0.1"
           memory: 128M
 
+  localstack:
+    profiles: [infra]
+    container_name: k8s-cluster-localstack
+    image: localstack/localstack
+    ports:
+      - "127.0.0.1:4566:4566"
+      - "127.0.0.1:4510-4559:4510-4559"
+    env_file:
+      - *aws-vault-env-file
+    environment:
+      DEBUG: "0"
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      k8s-cluster-local:
+        aliases:
+          - localstack
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+
 volumes:
   postgres_data:
     name: k8s-cluster-postgres-data
   kafka_data:
     name: k8s-cluster-kafka-data
+  localstack_data:
+    name: k8s-cluster-localstack-data

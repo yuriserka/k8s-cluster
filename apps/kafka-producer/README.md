@@ -16,10 +16,18 @@ Each README covers **run** (env vars) and **tests** for that piece. Lint and cov
 
 From this directory, with [minikube docker-env](../../README.md#startingstoping) only if you build images for the cluster:
 
-[`compose.yaml`](compose.yaml) is self-contained: API, scheduler, Postgres, Kafka, and LocalStack on network **`k8s-cluster-local`**. Fixed container names let another compose project reuse the same infra without any cross-app config.
+[`compose.yaml`](compose.yaml) is self-contained on network **`k8s-cluster-local`**. Infra (Postgres, Kafka, LocalStack) uses the `infra` profile (enabled via [`.env`](.env)).
+
+**This app only:**
 
 ```bash
 docker compose up --build
+```
+
+**Second app while infra is already running** (skip infra to avoid container-name conflicts):
+
+```bash
+COMPOSE_PROFILES= docker compose up -d --build --no-deps api scheduler
 ```
 
 - API: http://localhost:8080  

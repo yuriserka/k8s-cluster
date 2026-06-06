@@ -1,3 +1,7 @@
+# Standalone: starts infra (postgres, kafka, localstack) plus app services.
+# When infra is already running on k8s-cluster-local, start apps only:
+#   COMPOSE_PROFILES= docker compose up -d --build --no-deps api scheduler example-topic-consumer
+
 x-database-env: &database-env
   DJANGO_SETTINGS_MODULE: kafkaworker.config.settings
   DATABASE_HOST: postgres
@@ -34,9 +38,15 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - postgres
-      - kafka
-      - localstack
+      postgres:
+        condition: service_started
+        required: false
+      kafka:
+        condition: service_started
+        required: false
+      localstack:
+        condition: service_started
+        required: false
     env_file:
       - *otel-vault-env-file
     environment:
@@ -73,7 +83,9 @@ services:
     ports:
       - "8006:8006"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_started
+        required: false
     env_file:
       - *otel-vault-env-file
     environment:
@@ -105,9 +117,15 @@ services:
     ports:
       - "8005:8005"
     depends_on:
-      - postgres
-      - kafka
-      - localstack
+      postgres:
+        condition: service_started
+        required: false
+      kafka:
+        condition: service_started
+        required: false
+      localstack:
+        condition: service_started
+        required: false
     env_file:
       - *otel-vault-env-file
     environment:
@@ -133,6 +151,7 @@ services:
     restart: always
 
   postgres:
+    profiles: [infra]
     container_name: k8s-cluster-postgres
     image: bitnami/postgresql:16
     ports:
@@ -159,6 +178,7 @@ services:
           memory: 128M
 
   kafka:
+    profiles: [infra]
     container_name: k8s-cluster-kafka
     image: bitnamilegacy/kafka:4.0.0-debian-12-r10
     ports:
@@ -188,6 +208,7 @@ services:
           memory: 256M
 
   localstack:
+    profiles: [infra]
     container_name: k8s-cluster-localstack
     image: localstack/localstack
     ports:
