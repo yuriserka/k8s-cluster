@@ -67,8 +67,8 @@ spec:
   template:
     metadata:
       annotations:
-        pipeline_deployed_at: "2026-06-06T01:30:02.239496+00:00"
-        pipeline_id: 8be31cc9-7dbf-4fd7-8277-dea9851c4ad5
+        pipeline_deployed_at: "2026-06-06T14:39:12.531513+00:00"
+        pipeline_id: 3f33e2ba-f0fd-403c-8d89-bec5e5cf9720
       labels:
         helm.sh/chart: dev-0.1.0
         app.kubernetes.io/name: dev
@@ -76,6 +76,7 @@ spec:
         app.kubernetes.io/version: "latest"
         app.kubernetes.io/managed-by: Helm
     spec:
+      terminationGracePeriodSeconds: 60
       containers:
         - name: kafka-worker-example-topic-consumer-dev
           image: "kafka-worker-example-topic-consumer-dev:dev"

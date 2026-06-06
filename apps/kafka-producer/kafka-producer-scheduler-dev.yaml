@@ -64,8 +64,8 @@ spec:
   template:
     metadata:
       annotations:
-        pipeline_deployed_at: "2026-06-06T01:40:02.337363+00:00"
-        pipeline_id: 1b642298-1b93-453b-ad8f-30b99fb7bdcb
+        pipeline_deployed_at: "2026-06-06T14:42:13.366869+00:00"
+        pipeline_id: 825bcfd2-c3ff-4e15-98a7-479983a2ad0c
       labels:
         helm.sh/chart: dev-0.1.0
         app.kubernetes.io/name: dev
@@ -73,6 +73,7 @@ spec:
         app.kubernetes.io/version: "latest"
         app.kubernetes.io/managed-by: Helm
     spec:
+      terminationGracePeriodSeconds: 60
       containers:
         - name: kafka-producer-scheduler-dev
           image: "kafka-producer-scheduler-dev:dev"
@@ -108,7 +109,7 @@ spec:
             timeoutSeconds: 60
           resources:
             limits:
-              cpu: 400m
+              cpu: 1000m
               memory: 1Gi
             requests:
               cpu: 300m
