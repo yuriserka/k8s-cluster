@@ -30,6 +30,8 @@ def start_postgres_container() -> PostgresContainer:
     if _container is not None:
         return _container
 
+    # Explicit atexit cleanup below; Ryuk adds a second Docker client that can leak sockets.
+    os.environ.setdefault("TESTCONTAINERS_RYUK_DISABLED", "true")
     _use_docker_desktop_for_testcontainers()
     _container = PostgresContainer(POSTGRES_IMAGE)
     _container.start()
@@ -46,6 +48,12 @@ def start_postgres_container() -> PostgresContainer:
 
 def stop_postgres_container() -> None:
     global _container
+    try:
+        from django.db import connections
+
+        connections.close_all()
+    except Exception:
+        pass
     if _container is not None:
         _container.stop()
         _container = None
