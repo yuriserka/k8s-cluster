@@ -1,11 +1,64 @@
-.PHONY: create-env, install-requirements
+.DEFAULT_GOAL := help
 
-create-env:
+VENV := .venv
+PYTHON := $(VENV)/bin/python
+PIP := $(VENV)/bin/pip
+
+DOCKERFILE_DEV := kafkaworker/containers/Dockerfile.dev
+
+.PHONY: help venv create-env install install-requirements code-checks test format check \
+	compose-up compose-up-d docker-build-api docker-build-scheduler docker-build-consumer pipeline
+
+help:
+	@echo "kafka-worker targets:"
+	@echo "  make venv                 Create .venv (alias: create-env)"
+	@echo "  make install              pip install requirements.txt + requirements_dev.txt"
+	@echo "  make code-checks          black --check + flake8 (pipeline lint step)"
+	@echo "  make test                 run_tests.py with coverage (pipeline test step)"
+	@echo "  make format               Apply black to kafkaworker/"
+	@echo "  make check                code-checks then test"
+	@echo "  make compose-up           docker compose up --build"
+	@echo "  make compose-up-d         docker compose up -d --build"
+	@echo "  make docker-build-api     Build api dev image locally"
+	@echo "  make docker-build-scheduler Build scheduler dev image locally"
+	@echo "  make docker-build-consumer  Build example-topic-consumer dev image locally"
+	@echo "  make pipeline             Run full cluster pipeline via scripts/pipeline_parser.py"
+
+venv create-env:
 	@echo "Creating virtual environment..."
-	@python3 -m venv .venv
+	python3 -m venv $(VENV)
 	@echo "Virtual environment created."
 
-install-requirements:
+install install-requirements: | $(VENV)/bin/python
 	@echo "Installing requirements..."
-	@pip3 install -r requirements.txt
+	$(PIP) install -r requirements.txt -r requirements_dev.txt
 	@echo "Requirements installed."
+
+code-checks: install
+	$(PYTHON) code_checks.py
+
+test: install
+	$(PYTHON) run_tests.py
+
+format: install
+	$(PYTHON) -m black kafkaworker
+
+check: code-checks test
+
+compose-up:
+	docker compose up --build
+
+compose-up-d:
+	docker compose up -d --build
+
+docker-build-api:
+	docker build -t kafka-worker-api-local:latest -f $(DOCKERFILE_DEV) --build-arg CONTAINER=api .
+
+docker-build-scheduler:
+	docker build -t kafka-worker-scheduler-local:latest -f $(DOCKERFILE_DEV) --build-arg CONTAINER=scheduler .
+
+docker-build-consumer:
+	docker build -t kafka-worker-example-topic-consumer-local:latest -f $(DOCKERFILE_DEV) --build-arg CONTAINER=example-topic-consumer .
+
+pipeline:
+	cd ../../scripts && python3 pipeline_parser.py kafka-worker
