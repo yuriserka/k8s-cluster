@@ -2,6 +2,9 @@ spring.profiles.active: local
 
 spring.jpa.open-in-view: false
 
+spring.lifecycle:
+    timeout-per-shutdown-phase: 30s
+
 spring.http.gateways:
     geocoding.url: ${GEOCODING_URL}
     openmeteo.forecast.url: ${OPENMETEO_FORECAST_URL}
