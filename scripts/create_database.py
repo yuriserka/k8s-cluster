@@ -59,7 +59,7 @@ def kubectl_exec_psql(namespace, admin_user, admin_password, sql, database=None)
     parts.extend(["-c", shlex.quote(sql)])
     inner = " ".join(parts)
     execute_cli_command(
-        "minikube kubectl -- exec -it postgresql-0 -n " f"{shlex.quote(namespace)} -- bash -c {shlex.quote(inner)}"
+        "minikube kubectl -- exec postgresql-0 -n " f"{shlex.quote(namespace)} -- bash -c {shlex.quote(inner)}"
     )
 
 
@@ -71,7 +71,16 @@ def create_database_if_missing(
     app_user: str,
 ):
     quoted_db = quote_pg_identifier(db_name)
-    create_sql = f"CREATE DATABASE {quoted_db} OWNER {app_user};"
+    safe_db_name = db_name.replace("'", "''")
+    create_sql = (
+        "DO $$\n"
+        "BEGIN\n"
+        f"  IF NOT EXISTS (SELECT FROM pg_database WHERE datname = '{safe_db_name}') THEN\n"
+        f"    CREATE DATABASE {quoted_db} OWNER {app_user};\n"
+        "  END IF;\n"
+        "END\n"
+        "$$;"
+    )
     kubectl_exec_psql(namespace, admin_user, admin_password, create_sql)
 
 

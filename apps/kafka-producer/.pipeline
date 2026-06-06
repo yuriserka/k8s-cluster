@@ -27,7 +27,7 @@ steps:
     repository: kafka-producer
     image_repo: kafka-producer-migrate
     cmd:
-      - ./gradlew :app:core:flywayMigrate -Dflyway.configFiles=flyway.conf
+      - /docker-entrypoint.sh migrate
 
   dev-publish-api:
     kind: publish

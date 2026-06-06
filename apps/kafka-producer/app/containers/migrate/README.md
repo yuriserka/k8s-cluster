@@ -1,16 +1,21 @@
 # Migrate container (`kafka-producer-migrate`)
 
-One-shot image that runs Flyway against PostgreSQL via Gradle (`:app:core:flywayMigrate`). Used in the pipeline `dev-migrate` step (in-cluster job), not a long-running service.
+One-shot image that runs Flyway against PostgreSQL. Used in the pipeline `dev-migrate` step (in-cluster job), not a long-running service.
 
-Schema and migrations live in [`app/core`](../../core) (`flyway.conf`, `src/main/resources/db/migration`).
+| Context | Tool | Why |
+|---------|------|-----|
+| **In-cluster (pipeline)** | [Flyway CLI](https://hub.docker.com/r/flyway/flyway) image | Fast one-shot pod (~seconds); no Gradle bootstrap |
+| **Local dev** | `./gradlew :app:core:flywayMigrate` | Uses host Gradle cache; same SQL migrations |
+
+Schema and migrations live in [`app/core`](../../core) (`flyway.conf` for Gradle, `src/main/resources/db/migration` for both).
 
 **Prerequisites:** JDK **21** for local Gradle runs; Docker for the container image.
 
 ---
 
-## Run the container
+## Run migrations
 
-### Option A — Gradle (local / CI)
+### Option A — Gradle (local)
 
 From the [kafka-producer](../../../) repo root, with Postgres reachable:
 
@@ -37,7 +42,9 @@ Config file path is relative to `app/core` (Gradle project dir).
 
 **Cluster / vault** credentials (`root` / `example`, host `postgresql`) — see [`scripts/README.md`](../../../../../scripts/README.md) (`database_migration` step); not used for local compose.
 
-### Option B — Docker image
+### Option B — Docker image (Flyway CLI)
+
+Build from the [kafka-producer](../../../) repo root:
 
 ```bash
 docker build -t kafka-producer-migrate:local -f app/containers/migrate/Dockerfile .
@@ -51,6 +58,8 @@ docker run --rm \
   kafka-producer-migrate:local
 ```
 
+The entrypoint maps `DATABASE_*` env vars to Flyway settings (parity with [`flyway.conf`](../../core/flyway.conf)).
+
 On Linux, replace `host.docker.internal` with your host IP or `--network host` if Postgres listens on the host.
 
 ### Environment variables
@@ -63,8 +72,6 @@ On Linux, replace `host.docker.internal` with your host IP or `--network host` i
 | `DATABASE_PORT` | yes | `5432` |
 | `DATABASE_NAME` | yes | `kafka-producer` |
 
-Substituted into [`app/core/flyway.conf`](../../core/flyway.conf).
-
 ### Publish to minikube (pipeline)
 
 ```bash
@@ -73,6 +80,8 @@ python publish_app.py --repository kafka-producer-migrate \
   --dockerfile app/containers/migrate/Dockerfile \
   --app-path ../apps/kafka-producer --namespace dev --use-minikube-docker --tag dev
 ```
+
+Pipeline `dev-migrate` runs `/docker-entrypoint.sh migrate` in-cluster (the Job `command` replaces the image entrypoint, so the script must be invoked explicitly).
 
 ---
 

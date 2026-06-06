@@ -1,9 +1,8 @@
-FROM gradle:8-jdk21-alpine
+FROM flyway/flyway:11.3.1-alpine
 
-WORKDIR /app
+COPY app/core/src/main/resources/db/migration/ /flyway/sql
+COPY app/containers/migrate/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
-COPY . .
-
-RUN chmod +x gradlew
-
-CMD ["./gradlew", ":app:core:flywayMigrate", "-Dflyway.configFiles=flyway.conf"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["migrate"]
