@@ -1,9 +1,12 @@
 import os
-import sys
 
+import typer
 import yaml
 
+from cli_common import exit_on_failure, make_cli_app
 from repo_paths import REPO_ROOT
+
+app = make_cli_app()
 
 
 def execute_cli_command(command: str) -> int:
@@ -29,14 +32,14 @@ def get_helm_releases(repository: str, namespace: str) -> list[str]:
     return releases
 
 
-def main(namespace: str, repository: str):
+def remove_all_pods(namespace: str, repository: str) -> int:
     releases = get_helm_releases(repository, namespace)
     if not releases:
         print(
             f'No install steps found for repository "{repository}" '
             f'in namespace "{namespace}".'
         )
-        return
+        return 0
 
     exit_code = 0
     for release in releases:
@@ -44,22 +47,17 @@ def main(namespace: str, repository: str):
             f'helm uninstall {release} -n {namespace}'
         )
 
-    if exit_code != 0:
-        sys.exit(1)
+    return 0 if exit_code == 0 else 1
+
+
+@app.command()
+def cli(
+    namespace: str = typer.Option(..., help="Kubernetes namespace (e.g. dev)"),
+    repository: str = typer.Option(..., help="App folder under apps/"),
+) -> None:
+    exit_code = remove_all_pods(namespace, repository)
+    exit_on_failure(exit_code, f"Failed to uninstall releases for {repository}")
 
 
 if __name__ == '__main__':
-    args = sys.argv[1:]
-
-    if "-n" not in args:
-        print("Namespace is required. Use -n flag to specify the namespace.")
-        sys.exit(1)
-
-    if "-r" not in args:
-        print("Repository is required. Use -r flag to specify the repository.")
-        sys.exit(1)
-
-    namespace = args[args.index("-n") + 1]
-    repository = args[args.index("-r") + 1]
-
-    main(namespace, repository)
+    app()

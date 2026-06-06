@@ -1,7 +1,12 @@
 import os
 import shlex
 
+import typer
+
+from cli_common import exit_on_failure, make_cli_app
 from repo_paths import REPO_ROOT
+
+app = make_cli_app()
 
 
 def read_env_file(env_file: str):
@@ -108,7 +113,7 @@ def grant_database_privileges(
     )
 
 
-def main(repository: str, namespace: str):
+def main(repository: str, namespace: str) -> int:
     print(f'Creating database for service "{repository}"')
 
     db_to_create_credentials = get_database_credentials(repository, namespace)
@@ -141,20 +146,21 @@ def main(repository: str, namespace: str):
     print(
         'Re-run this script safely on existing databases to fix PG15+ public schema permissions.'
     )
+    return 0
+
+
+@app.command()
+def cli(
+    namespace: str = typer.Option(..., help="Kubernetes namespace (e.g. dev)"),
+    repository: str = typer.Option(..., help="App folder under apps/"),
+) -> None:
+    try:
+        exit_code = main(repository, namespace)
+    except (FileNotFoundError, ValueError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from error
+    exit_on_failure(exit_code, "")
 
 
 if __name__ == '__main__':
-    args = os.sys.argv[1:]
-
-    if "-n" not in args:
-        print("Namespace is required to install the app. Use -n flag to specify the namespace.")
-        exit(1)
-
-    if "-r" not in args:
-        print("Repository is required to install the app. Use -r flag to specify the repository.")
-        exit(1)
-
-    namespace = args[args.index("-n") + 1]
-    repository = args[args.index("-r") + 1]
-
-    main(repository, namespace)
+    app()

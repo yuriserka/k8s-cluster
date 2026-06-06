@@ -69,9 +69,9 @@ Substituted into [`app/core/flyway.conf`](../../core/flyway.conf).
 
 ```bash
 cd scripts
-python publish_app.py -r kafka-producer-migrate \
-  -d app/containers/migrate/Dockerfile \
-  -p ../apps/kafka-producer -n dev -k -t dev
+python publish_app.py --repository kafka-producer-migrate \
+  --dockerfile app/containers/migrate/Dockerfile \
+  --app-path ../apps/kafka-producer --namespace dev --use-minikube-docker --tag dev
 ```
 
 ---

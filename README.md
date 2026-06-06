@@ -40,7 +40,7 @@ kubectl port-forward -n dev service/postgresql 5432:5432
 # from the scripts/ directory (see scripts/README.md):
 cd scripts
 # create_database.py creates the DB and grants the app user owner + public schema rights (required on PG15+ for migrations)
-python create_database.py -n dev -r <app_name>
+python create_database.py --namespace dev --repository <app_name>
 python pipeline_parser.py <app_name>
 ```
 
@@ -67,7 +67,7 @@ to uninstall every Helm release that app's pipeline deploys (all `kind: install`
 
 ```bash
 cd scripts
-python remove_all_pods.py -n dev -r <app_name>
+python remove_all_pods.py --namespace dev --repository <app_name>
 ```
 
 and to stop minikube and all services just run:

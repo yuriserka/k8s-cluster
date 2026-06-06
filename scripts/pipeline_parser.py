@@ -7,7 +7,15 @@ import yaml
 import os
 from datetime import datetime, timezone
 
+import typer
+
+import create_database
+import install_app
+import publish_app
+from cli_common import make_cli_app
 from repo_paths import REPO_ROOT, SCRIPT_DIR
+
+app = make_cli_app()
 
 DEFAULT_POSTGRES_SERVICE = 'postgresql'
 DEFAULT_POSTGRES_PORT = '5432'
@@ -139,24 +147,28 @@ def handle_install_step(
     pipeline_started_at: str,
 ):
     print('Installing app with args:', args)
-    install_script = os.path.join(SCRIPT_DIR, 'install_app.py')
-    return execute_cli_command(
-        f'python {install_script} -r {args.repo} -a {args.application} '
-        f'-e {args.params_file} -p {temp_folder_path} -n {args.env} -t {args.env} '
-        f'--pipeline-id {shlex.quote(pipeline_id)} '
-        f'--pipeline-started-at {shlex.quote(pipeline_started_at)}'
+    return install_app.install_app(
+        application=args.application,
+        repository=args.repo,
+        environment_file=args.params_file,
+        namespace=args.env,
+        path=temp_folder_path,
+        tag=args.env,
+        pipeline_id=pipeline_id,
+        pipeline_started_at=pipeline_started_at,
     )
 
 
 def handle_publish_step(args: PublishStepArgs, temp_folder_path: str):
     print('Publishing app with args:', args)
-    publish_script = os.path.join(SCRIPT_DIR, 'publish_app.py')
-    build_args_flag = ''
-    if args.build_args:
-        build_args_flag = f'-b {shlex.quote(json.dumps(args.build_args))} '
-    return execute_cli_command(
-        f'python {publish_script} -r {args.repo} -d {args.dockerfile} '
-        f'{build_args_flag}-p {temp_folder_path} -n {args.env} -k -t {args.env}'
+    return publish_app.main(
+        repository=args.repo,
+        dockerfile_path=args.dockerfile,
+        namespace=args.env,
+        intra_cluster=True,
+        path=temp_folder_path,
+        tag=args.env,
+        build_args=args.build_args or None,
     )
 
 
@@ -289,10 +301,11 @@ def handle_database_migration_step(args: DatabaseMigrationStepArgs, temp_folder_
         )
         return exit_code
 
-    create_script = os.path.join(SCRIPT_DIR, 'create_database.py')
-    exit_code = execute_cli_command(
-        f'python {create_script} -n {args.env} -r {args.repository}'
-    )
+    try:
+        exit_code = create_database.main(args.repository, args.env)
+    except (FileNotFoundError, ValueError) as error:
+        print(error)
+        return 1
     if exit_code != 0:
         return exit_code
 
@@ -376,9 +389,13 @@ def main(repository: str):
     finish_pipeline(0, tempfolder, running_services)
 
 
-if __name__ == '__main__':
-    args = os.sys.argv[1:]
-    repository = args[0]
-
+@app.command()
+def cli(
+    repository: str = typer.Argument(..., help="App folder under apps/ (e.g. kafka-worker)"),
+) -> None:
     os.chdir(SCRIPT_DIR)
     main(repository)
+
+
+if __name__ == '__main__':
+    app()

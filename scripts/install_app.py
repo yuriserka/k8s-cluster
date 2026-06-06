@@ -2,8 +2,14 @@ import os
 import uuid
 import yaml
 from datetime import datetime, timezone
+from typing import Optional
 
+import typer
+
+from cli_common import exit_on_failure, make_cli_app
 from repo_paths import REPO_ROOT, SCRIPT_DIR, resolve_path
+
+app = make_cli_app()
 
 
 def get_values_template_for(namespace: str) -> dict:
@@ -238,55 +244,31 @@ def main(
     )
 
 
-def _optional_flag_value(args: list[str], flag: str) -> str | None:
-    if flag not in args:
-        return None
-    index = args.index(flag) + 1
-    if index >= len(args):
-        return None
-    return args[index]
-
-
-if __name__ == '__main__':
-    args = os.sys.argv[1:]
-
-    if "-n" not in args:
-        print("Namespace is required to install the app. Use -n flag to specify the namespace.")
-        exit(1)
-
-    if "-a" not in args:
-        print("Application is required to install the app. Use -a flag to specify the application.")
-        exit(1)
-
-    if "-e" not in args:
-        print("Environment is required to install the app. Use -e flag to specify the environment_file.")
-        exit(1)
-
-    if "-p" not in args:
-        print("Path is required to install the app. Use -p flag to specify the path.")
-        exit(1)
-
-    application = args[args.index("-a") + 1]
-    environment_file = args[args.index("-e") + 1]
-    path = args[args.index("-p") + 1]
-    namespace = args[args.index("-n") + 1]
-    repository = args[args.index("-r") + 1]
-    tag = args[args.index("-t") + 1] if "-t" in args else None
-    pipeline_id = _optional_flag_value(args, '--pipeline-id')
-    pipeline_started_at = _optional_flag_value(args, '--pipeline-started-at')
-
+@app.command()
+def cli(
+    application: str = typer.Option(..., help="Helm release / application name"),
+    repository: str = typer.Option(..., help="App folder under apps/ (vault + chart output path)"),
+    params_file: str = typer.Option(..., help="Kube params file under kube/<namespace>/ (e.g. api.yaml)"),
+    app_path: str = typer.Option(..., help="App directory (chart context)"),
+    namespace: str = typer.Option(..., help="Kubernetes namespace (e.g. dev)"),
+    tag: Optional[str] = typer.Option(None, help="Image tag written into Helm values (default: latest)"),
+    pipeline_id: Optional[str] = typer.Option(None, help="Pipeline run UUID (auto-generated if omitted)"),
+    pipeline_started_at: Optional[str] = typer.Option(
+        None, help="Pipeline start time ISO-8601 UTC (auto-generated if omitted)"
+    ),
+) -> None:
     exit_code = main(
         application,
         repository,
-        environment_file,
+        params_file,
         namespace,
-        path,
+        app_path,
         tag,
         pipeline_id,
         pipeline_started_at,
     )
+    exit_on_failure(exit_code, f"Installation of {application} failed")
 
-    if exit_code != 0:
-        raise Exception(
-            f'Installation of {application} failed with code {exit_code}'
-        )
+
+if __name__ == '__main__':
+    app()

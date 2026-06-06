@@ -1,10 +1,16 @@
+import json
 import os
 import shlex
+from typing import Optional
+
+import typer
 import yaml
-import json
 from dockerfile_parse import DockerfileParser
 
+from cli_common import exit_on_failure, make_cli_app
 from repo_paths import REPO_ROOT, resolve_path
+
+app = make_cli_app()
 
 
 def run_docker_build(
@@ -176,36 +182,33 @@ def main(
     return build_result
 
 
-if __name__ == '__main__':
-    args = os.sys.argv[1:]
-
-    if "-n" not in args:
-        print("Namespace is required to publish the app. Use -n flag to specify the namespace.")
-        exit(1)
-
-    if "-d" not in args:
-        print("Dockerfile path is required to publish the app. Use -d flag to specify the dockerfile path.")
-        exit(1)
-
-    if "-r" not in args:
-        print("Repository is required to publish the app. Use -r flag to specify the repository.")
-        exit(1)
-
-    if "-p" not in args:
-        print("Path is required to publish the app. Use -p flag to specify the path.")
-        exit(1)
-
-    namespace = args[args.index("-n") + 1]
-    dockerfile_path = args[args.index("-d") + 1]
-    repository = args[args.index("-r") + 1]
-    path = args[args.index("-p") + 1]
-    tag = args[args.index("-t") + 1] if "-t" in args else None
-    intra_cluster = "-k" in args
-    build_args = json.loads(args[args.index("-b") + 1]) if "-b" in args else None
-
+@app.command()
+def cli(
+    repository: str = typer.Option(..., help="Image/repository name (e.g. kafka-worker-api)"),
+    dockerfile: str = typer.Option(..., help="Dockerfile path relative to --app-path"),
+    app_path: str = typer.Option(..., help="Build context directory"),
+    namespace: str = typer.Option(..., help="Namespace / environment (e.g. dev)"),
+    tag: Optional[str] = typer.Option(None, help="Image tag (default: latest)"),
+    use_minikube_docker: bool = typer.Option(
+        False,
+        help="Build against minikube Docker daemon (eval minikube docker-env)",
+    ),
+    build_args: Optional[str] = typer.Option(
+        None, help="JSON object of Docker build-args (e.g. '{\"CONTAINER\":\"api\"}')"
+    ),
+) -> None:
+    parsed_build_args = json.loads(build_args) if build_args else None
     exit_code = main(
-        repository, dockerfile_path, namespace, intra_cluster, path, tag, build_args
+        repository,
+        dockerfile,
+        namespace,
+        use_minikube_docker,
+        app_path,
+        tag,
+        parsed_build_args,
     )
+    exit_on_failure(exit_code, f"Failed to publish app with repository: {repository}")
 
-    if exit_code != 0:
-        raise Exception(f'Failed to publish app with repository: {repository}')
+
+if __name__ == '__main__':
+    app()

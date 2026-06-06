@@ -19,7 +19,8 @@ On PostgreSQL 15+, the `public` schema no longer grants `CREATE` to all users. D
 Use the repo script from the project root (creates the DB if missing, then always applies owner/grants — safe to re-run on an existing database):
 
 ```bash
-python create_database.py -n dev -r <app_name>
+cd scripts
+python create_database.py --namespace dev --repository <app_name>
 ```
 
 Example for `kafka-worker`: creates database `kafka-worker` owned by `root` (from `resources/vault/kafka-worker/database/dev/.env`).
@@ -40,7 +41,7 @@ GRANT ALL ON SCHEMA public TO root;
 ALTER SCHEMA public OWNER TO root;
 ```
 
-Or re-run `python create_database.py -n dev -r kafka-worker` to apply the same grants automatically.
+Or re-run `python create_database.py --namespace dev --repository kafka-worker` to apply the same grants automatically.
 
 Avoid `ALTER ROLE ... WITH SUPERUSER` unless you explicitly want full cluster admin for that user in dev.
 

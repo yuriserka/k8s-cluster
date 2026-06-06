@@ -15,6 +15,8 @@ pip install -r requirements.txt
 
 Requirements: Python 3.8+, [Docker](https://docs.docker.com/), [Helm](https://helm.sh/), [minikube](https://minikube.sigs.k8s.io/) (for cluster scripts), and `kubectl` (often via `minikube kubectl --`).
 
+**CLI conventions:** Every script uses [Typer](https://typer.tiangolo.com/). Options use descriptive long names (`--namespace`, `--repository`, …). Run `python <script>.py --help` for the full list.
+
 For cluster workflows, start infra from the [project README](../README.md) first.
 
 ## Scripts overview
@@ -32,7 +34,7 @@ For cluster workflows, start infra from the [project README](../README.md) first
 
 ### Local pipeline (tests, lint, publish, deploy)
 
-Uses the `steps` section in `../apps/<repo>/.pipeline`. **Test steps** start Postgres via Testcontainers in the test process — **kafka-producer** (`./gradlew test`) and **kafka-worker** (`manage.py test`) — so no `.pipeline` `services` block is needed. When minikube docker-env is active in the shell, Testcontainers use Docker Desktop for the **`test`** step (see step kinds below); **publish** steps still build into minikube via `-k`.
+Uses the `steps` section in `../apps/<repo>/.pipeline`. **Test steps** start Postgres via Testcontainers in the test process — **kafka-producer** (`./gradlew test`) and **kafka-worker** (`manage.py test`) — so no `.pipeline` `services` block is needed. When minikube docker-env is active in the shell, Testcontainers use Docker Desktop for the **`test`** step (see step kinds below); **publish** steps still build into minikube via `--use-minikube-docker`.
 
 ```bash
 python pipeline_parser.py kafka-worker
@@ -55,7 +57,7 @@ kubectl port-forward -n dev service/postgresql 5432:5432
 Then create the database and apply permissions (safe to re-run):
 
 ```bash
-python create_database.py -n dev -r kafka-worker
+python create_database.py --namespace dev --repository kafka-worker
 ```
 
 Credentials are read from:
@@ -72,34 +74,37 @@ These are invoked by `pipeline_parser.py` for steps with `kind: publish` or `kin
 **Publish** — build image tagged `<repo>-<namespace>:<tag>`:
 
 ```bash
-python publish_app.py -r kafka-worker-api -d Dockerfile -p /path/to/build/context -n dev -t dev -k
+python publish_app.py --repository kafka-worker-api --dockerfile Dockerfile \
+  --app-path /path/to/build/context --namespace dev --tag dev --use-minikube-docker
 ```
 
-| Flag | Description |
-|------|-------------|
-| `-r` | Image/repository name (e.g. `kafka-worker-api`) |
-| `-d` | Dockerfile path (relative to `-p`) |
-| `-p` | Build context directory |
-| `-n` | Namespace / environment (e.g. `dev`) |
-| `-t` | Image tag (default: `latest`) |
-| `-k` | Build with `docker build` against minikube's Docker daemon (`eval "$(minikube docker-env)"`) so images are available with `imagePullPolicy: Never` |
+| Option | Description |
+|--------|-------------|
+| `--repository` | Image/repository name (e.g. `kafka-worker-api`) |
+| `--dockerfile` | Dockerfile path (relative to `--app-path`) |
+| `--app-path` | Build context directory |
+| `--namespace` | Namespace / environment (e.g. `dev`) |
+| `--tag` | Image tag (default: `latest`) |
+| `--use-minikube-docker` | Build with `docker build` against minikube's Docker daemon (`eval "$(minikube docker-env)"`) so images are available with `imagePullPolicy: Never` |
+| `--build-args` | Optional JSON object of Docker build-args (e.g. `'{"CONTAINER":"api"}'`) |
 
 Optional OpenTelemetry instrumentation is applied when enabled in `../resources/<repo>/<namespace>.yaml`.
 
 **Install** — idempotent Helm deploy (`helm upgrade --install`):
 
 ```bash
-python install_app.py -r kafka-worker -a kafka-worker-api -e api.yaml -p /path/to/app -n dev -t dev
+python install_app.py --repository kafka-worker --application kafka-worker-api \
+  --params-file api.yaml --app-path /path/to/app --namespace dev --tag dev
 ```
 
-| Flag | Description |
-|------|-------------|
-| `-r` | App repo folder name under `../apps/` (used for vault secrets and chart output path) |
-| `-a` | Helm release / application name |
-| `-e` | Params file under `kube/<namespace>/` (e.g. `api.yaml`) |
-| `-p` | App directory (chart context) |
-| `-n` | Kubernetes namespace |
-| `-t` | Image tag written into values (default: `latest`) |
+| Option | Description |
+|--------|-------------|
+| `--repository` | App repo folder name under `../apps/` (used for vault secrets and chart output path) |
+| `--application` | Helm release / application name |
+| `--params-file` | Params file under `kube/<namespace>/` (e.g. `api.yaml`) |
+| `--app-path` | App directory (chart context) |
+| `--namespace` | Kubernetes namespace |
+| `--tag` | Image tag written into values (default: `latest`) |
 | `--pipeline-id` | UUID for this deploy (optional; auto-generated if omitted) |
 | `--pipeline-started-at` | ISO-8601 UTC timestamp (optional; auto-generated if omitted) |
 
@@ -120,11 +125,11 @@ Defined in each app's `apps/<repo>/.pipeline`:
 | `kind` | Handler behavior |
 |--------|------------------|
 | *(none)* | Runs shell `cmd` list in the temp pipeline directory |
-| *(none)* `test` + minikube docker-env | Same as above; if `MINIKUBE_ACTIVE_DOCKERD` (or minikube `DOCKER_HOST`) is set, the parser prepends `DOCKER_HOST=unix:///var/run/docker.sock` so Testcontainers use Docker Desktop — publish steps still use minikube Docker via `-k` |
+| *(none)* `test` + minikube docker-env | Same as above; if `MINIKUBE_ACTIVE_DOCKERD` (or minikube `DOCKER_HOST`) is set, the parser prepends `DOCKER_HOST=unix:///var/run/docker.sock` so Testcontainers use Docker Desktop — publish steps still use minikube Docker via `--use-minikube-docker` |
 | `credentials` | Writes vault secrets to `output_file` (`path` format: `database:<target>:<namespace>`) |
 | `database_migration` | In-cluster migrate via `kubectl run` (no port-forward); see below |
-| `publish` | Calls `publish_app.py` with `-t` set to the step `env` (same as `-n`) |
-| `install` | Calls `install_app.py` with `-t` set to the step `env` and shared pipeline metadata (`pipeline_id`, ISO timestamp) |
+| `publish` | Calls `publish_app.main()` with `--tag` set to the step `env` (same as `--namespace`) |
+| `install` | Calls `install_app.install_app()` with `--tag` set to the step `env` and shared pipeline metadata (`pipeline_id`, ISO timestamp) |
 
 ### Pipeline `services` (optional)
 
@@ -220,13 +225,13 @@ Image reference: `{image_repo}-{env}:{env}` (e.g. `kafka-worker-api-dev:dev`). F
 ## `create_database.py`
 
 ```bash
-python create_database.py -n <namespace> -r <repository>
+python create_database.py --namespace <namespace> --repository <repository>
 ```
 
-| Flag | Description |
-|------|-------------|
-| `-n` | Kubernetes namespace (e.g. `dev`) |
-| `-r` | Repository name matching `resources/vault/<repository>/database/` |
+| Option | Description |
+|--------|-------------|
+| `--namespace` | Kubernetes namespace (e.g. `dev`) |
+| `--repository` | Repository name matching `resources/vault/<repository>/database/` |
 
 Executes `psql` inside the `postgresql-0` pod via `minikube kubectl -- exec`:
 
@@ -238,16 +243,16 @@ See also [PostgreSQL infra notes](../apps/infra/postgresql/README.md).
 
 ## `remove_all_pods.py`
 
-Tears down everything an app's pipeline deploys for a given namespace. Despite the filename, it does **not** delete pods directly — it runs `helm uninstall` for each release listed in `kind: install` steps of `apps/<repository>/.pipeline` where `env` matches `-n` and `repo` matches `-r`.
+Tears down everything an app's pipeline deploys for a given namespace. Despite the filename, it does **not** delete pods directly — it runs `helm uninstall` for each release listed in `kind: install` steps of `apps/<repository>/.pipeline` where `env` matches `--namespace` and `repo` matches `--repository`.
 
 ```bash
-python remove_all_pods.py -n dev -r kafka-worker
+python remove_all_pods.py --namespace dev --repository kafka-worker
 ```
 
-| Flag | Description |
-|------|-------------|
-| `-n` | Kubernetes namespace (must match the install step `env`, e.g. `dev`) |
-| `-r` | App folder name under `apps/` (must match the install step `repo`, e.g. `kafka-worker`) |
+| Option | Description |
+|--------|-------------|
+| `--namespace` | Kubernetes namespace (must match the install step `env`, e.g. `dev`) |
+| `--repository` | App folder name under `apps/` (must match the install step `repo`, e.g. `kafka-worker`) |
 
 For `kafka-worker` with `env: dev`, this uninstalls `kafka-worker-api`, `kafka-worker-example-topic-consumer`, and `kafka-worker-scheduler` (the `application` values from each matching install step). `kafka-producer` uninstalls `kafka-producer-api` and `kafka-producer-scheduler`.
 
