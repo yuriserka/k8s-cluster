@@ -7,7 +7,7 @@ PIP := $(VENV)/bin/pip
 DOCKERFILE_DEV := kafkaworker/containers/Dockerfile.dev
 
 .PHONY: help venv create-env install install-requirements code-checks test format check \
-	compose-up compose-up-d docker-build-api docker-build-scheduler docker-build-consumer pipeline
+	compose-up compose-up-d docker-build-api docker-build-scheduler docker-build-consumer migrate pipeline
 
 help:
 	@echo "kafka-worker targets:"
@@ -22,6 +22,7 @@ help:
 	@echo "  make docker-build-api     Build api dev image locally"
 	@echo "  make docker-build-scheduler Build scheduler dev image locally"
 	@echo "  make docker-build-consumer  Build example-topic-consumer dev image locally"
+	@echo "  make migrate              Django migrate against compose Postgres (docker compose run api)"
 	@echo "  make pipeline             Run full cluster pipeline via scripts/pipeline_parser.py"
 
 venv create-env:
@@ -59,6 +60,9 @@ docker-build-scheduler:
 
 docker-build-consumer:
 	docker build -t kafka-worker-example-topic-consumer-local:latest -f $(DOCKERFILE_DEV) --build-arg CONTAINER=example-topic-consumer .
+
+migrate:
+	docker compose run --rm api python manage.py migrate
 
 pipeline:
 	cd ../../scripts && python3 pipeline_parser.py kafka-worker

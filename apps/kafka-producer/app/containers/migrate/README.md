@@ -14,9 +14,18 @@ Schema and migrations live in [`app/core`](../../core) (`flyway.conf`, `src/main
 
 From the [kafka-producer](../../../) repo root, with Postgres reachable:
 
+**Docker Compose** ([`compose.yaml`](../../../compose.yaml) uses `ysdcr` / `ysdcr`, db `kafka-producer`, port `5432`):
+
 ```bash
-export DATABASE_USER=root
-export DATABASE_PASSWORD=example
+make compose-up-d    # or: docker compose up -d postgres
+make migrate
+```
+
+Or set env vars manually:
+
+```bash
+export DATABASE_USER=ysdcr
+export DATABASE_PASSWORD=ysdcr
 export DATABASE_HOST=localhost
 export DATABASE_PORT=5432
 export DATABASE_NAME=kafka-producer
@@ -26,19 +35,7 @@ export DATABASE_NAME=kafka-producer
 
 Config file path is relative to `app/core` (Gradle project dir).
 
-For pipeline-style test DB (port **5434**):
-
-```bash
-export DATABASE_USER=test
-export DATABASE_PASSWORD=test
-export DATABASE_HOST=localhost
-export DATABASE_PORT=5434
-export DATABASE_NAME=kafka-producer
-
-./gradlew :app:core:flywayMigrate -Dflyway.configFiles=flyway.conf
-```
-
-Cluster migrate uses vault credentials and host `postgresql` — see [`scripts/README.md`](../../../../../scripts/README.md) (`database_migration` step).
+**Cluster / vault** credentials (`root` / `example`, host `postgresql`) — see [`scripts/README.md`](../../../../../scripts/README.md) (`database_migration` step); not used for local compose.
 
 ### Option B — Docker image
 

@@ -62,7 +62,10 @@ From `apps/kafka-producer/`:
 
 | Step | Command |
 |------|---------|
-| Lint (Checkstyle + PMD, all modules) | `./gradlew codeChecks` |
+| Makefile (all targets) | `make help` |
+| Lint + test gate | `make check` |
+| Migrate (compose Postgres) | `make migrate` *(start postgres first: `make compose-up-d`)* |
+| Lint (Checkstyle + PMD, all modules) | `./gradlew codeChecks` or `make code-checks` |
 | Lint (api + core) | `./gradlew :app:containers:api:codeChecks` |
 | Lint (scheduler + core) | `./gradlew :app:containers:scheduler:codeChecks` |
 | Test (+ JaCoCo report, verification, aggregation) | `./gradlew test -x bootJar` |

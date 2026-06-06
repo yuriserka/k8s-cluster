@@ -74,10 +74,13 @@ From `apps/kafka-worker/`:
 
 | Step | Command |
 |------|---------|
-| Venv | `python3 -m venv .venv && . .venv/bin/activate` |
-| Install | `pip install -r requirements.txt -r requirements_dev.txt` |
-| Lint + style (black + flake8) | `python code_checks.py` |
-| Test + coverage | `python run_tests.py` |
+| Makefile (all targets) | `make help` |
+| Lint + test gate | `make check` |
+| Migrate (compose Postgres) | `make migrate` |
+| Venv | `python3 -m venv .venv && . .venv/bin/activate` or `make venv` |
+| Install | `pip install -r requirements.txt -r requirements_dev.txt` or `make install` |
+| Lint + style (black + flake8) | `python code_checks.py` or `make code-checks` |
+| Test + coverage | `python run_tests.py` or `make test` |
 | Docker build (api) | `docker build -t kafka-worker-api-local:latest -f kafkaworker/containers/Dockerfile.dev --build-arg CONTAINER=api .` |
 | Docker build (scheduler) | `docker build -t kafka-worker-scheduler-local:latest -f kafkaworker/containers/Dockerfile.dev --build-arg CONTAINER=scheduler .` |
 | Docker build (consumer) | `docker build -t kafka-worker-example-topic-consumer-local:latest -f kafkaworker/containers/Dockerfile.dev --build-arg CONTAINER=example-topic-consumer .` |
