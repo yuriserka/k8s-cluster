@@ -10,10 +10,20 @@ Python helpers that simulate a CI/CD pipeline locally: build images, run tests (
 cd scripts
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements_dev.txt
 ```
 
 Requirements: Python 3.8+, [Docker](https://docs.docker.com/), [Helm](https://helm.sh/), [minikube](https://minikube.sigs.k8s.io/) (for cluster scripts), and `kubectl` (often via `minikube kubectl --`).
+
+### Makefile
+
+From `scripts/`:
+
+```bash
+make lint                              # black --check + flake8
+make format                            # apply black
+make deploy-app kafka-worker           # full pipeline via pipeline_parser.py
+```
 
 **CLI conventions:** Every script uses [Typer](https://typer.tiangolo.com/). Options use descriptive long names (`--namespace`, `--repository`, …). Run `python <script>.py --help` for the full list.
 

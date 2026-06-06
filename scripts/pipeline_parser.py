@@ -17,8 +17,8 @@ from repo_paths import REPO_ROOT, SCRIPT_DIR
 
 app = make_cli_app()
 
-DEFAULT_POSTGRES_SERVICE = 'postgresql'
-DEFAULT_POSTGRES_PORT = '5432'
+DEFAULT_POSTGRES_SERVICE = "postgresql"
+DEFAULT_POSTGRES_PORT = "5432"
 POSTGRES_READY_TIMEOUT_SECONDS = 120
 
 
@@ -61,28 +61,27 @@ class PublishStepArgs(NamedTuple):
 
 
 def execute_cli_command(command: str):
-    print(f'Executing command: {command}')
+    print(f"Executing command: {command}")
     return os.system(command)
 
 
 def is_minikube_docker_env() -> bool:
-    if os.environ.get('MINIKUBE_ACTIVE_DOCKERD'):
+    if os.environ.get("MINIKUBE_ACTIVE_DOCKERD"):
         return True
-    docker_host = os.environ.get('DOCKER_HOST', '')
-    cert_path = os.environ.get('DOCKER_CERT_PATH', '')
-    return docker_host.startswith('tcp://') and 'minikube' in cert_path
+    docker_host = os.environ.get("DOCKER_HOST", "")
+    cert_path = os.environ.get("DOCKER_CERT_PATH", "")
+    return docker_host.startswith("tcp://") and "minikube" in cert_path
 
 
 def docker_desktop_env_prefix() -> str:
     return (
-        'unset DOCKER_TLS_VERIFY DOCKER_CERT_PATH MINIKUBE_ACTIVE_DOCKERD; '
-        'DOCKER_HOST=unix:///var/run/docker.sock '
+        "unset DOCKER_TLS_VERIFY DOCKER_CERT_PATH MINIKUBE_ACTIVE_DOCKERD; " "DOCKER_HOST=unix:///var/run/docker.sock "
     )
 
 
 def prepare_shell_command(cmd: str, step_name: str) -> str:
-    if step_name == 'test' and is_minikube_docker_env():
-        print('Using Docker Desktop for test step (minikube docker-env detected)')
+    if step_name == "test" and is_minikube_docker_env():
+        print("Using Docker Desktop for test step (minikube docker-env detected)")
         return docker_desktop_env_prefix() + cmd
     return cmd
 
@@ -90,53 +89,46 @@ def prepare_shell_command(cmd: str, step_name: str) -> str:
 def finish_pipeline(exit_code: int, tempfolder: str, running_services: list):
     print(f'Pipeline {"finished" if exit_code == 0 else "failed"}')
     for service_id in running_services:
-        execute_cli_command(f'docker rm -f -v {service_id}')
+        execute_cli_command(f"docker rm -f -v {service_id}")
 
     os.chdir(SCRIPT_DIR)
-    execute_cli_command(f'rm -r {tempfolder}')
+    execute_cli_command(f"rm -r {tempfolder}")
     exit(exit_code)
 
 
 def wait_for_docker_postgres(container_id: str, pg_user: str, timeout_seconds: int = 60) -> int:
     for second in range(timeout_seconds):
         exit_code = execute_cli_command(
-            f'docker exec {shlex.quote(container_id)} '
-            f'pg_isready -U {shlex.quote(pg_user)} -q'
+            f"docker exec {shlex.quote(container_id)} " f"pg_isready -U {shlex.quote(pg_user)} -q"
         )
         if exit_code == 0:
             if second > 0:
-                print(f'PostgreSQL ready after {second + 1}s')
+                print(f"PostgreSQL ready after {second + 1}s")
             return 0
         time.sleep(1)
 
-    print(
-        f'PostgreSQL in container "{container_id}" did not become ready '
-        f'within {timeout_seconds}s.'
-    )
+    print(f'PostgreSQL in container "{container_id}" did not become ready ' f"within {timeout_seconds}s.")
     return 1
 
 
 def handle_service(service_name: str, repository: str, args: ServiceArgs, temp_folder_path: str):
-    print(f'Starting service for {repository} with args: {args}')
-    container_id = f'{repository}-{service_name}'
-    image_env_vars = ' '.join(
-        [f'-e {key}={value}' for key, value in args.image_env_vars.items()],
+    print(f"Starting service for {repository} with args: {args}")
+    container_id = f"{repository}-{service_name}"
+    image_env_vars = " ".join(
+        [f"-e {key}={value}" for key, value in args.image_env_vars.items()],
     )
-    credentials_path = os.path.join(
-        temp_folder_path, args.output_file.lstrip('./')
-    )
+    credentials_path = os.path.join(temp_folder_path, args.output_file.lstrip("./"))
     write_secrets_to_file(args.env_vars, credentials_path)
 
-    execute_cli_command(f'docker rm -f {container_id} >/dev/null 2>&1')
+    execute_cli_command(f"docker rm -f {container_id} >/dev/null 2>&1")
 
     exit_code = execute_cli_command(
-        'docker run --pull=always -d '
-        f'--name {container_id} -p {args.image_port_map} {image_env_vars} {args.image}'
+        "docker run --pull=always -d " f"--name {container_id} -p {args.image_port_map} {image_env_vars} {args.image}"
     )
     if exit_code != 0:
         return container_id, exit_code
 
-    pg_user = args.image_env_vars.get('POSTGRES_USER', 'postgres')
+    pg_user = args.image_env_vars.get("POSTGRES_USER", "postgres")
     return container_id, wait_for_docker_postgres(container_id, pg_user)
 
 
@@ -146,7 +138,7 @@ def handle_install_step(
     pipeline_id: str,
     pipeline_started_at: str,
 ):
-    print('Installing app with args:', args)
+    print("Installing app with args:", args)
     return install_app.install_app(
         application=args.application,
         repository=args.repo,
@@ -160,7 +152,7 @@ def handle_install_step(
 
 
 def handle_publish_step(args: PublishStepArgs, temp_folder_path: str):
-    print('Publishing app with args:', args)
+    print("Publishing app with args:", args)
     return publish_app.main(
         repository=args.repo,
         dockerfile_path=args.dockerfile,
@@ -176,16 +168,16 @@ def write_secrets_to_file(secrets: dict, output_file: str):
     output_dir = os.path.dirname(output_file)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
-    with open(output_file, 'w') as file:
+    with open(output_file, "w") as file:
         for key, value in secrets.items():
-            file.write(f'{key}={value}\n')
+            file.write(f"{key}={value}\n")
 
 
 def handle_credentials_step(args: CredentialsStepArgs, temp_folder_path: str):
-    print('Getting credentials with args:', args)
-    resource, target, namespace = args.path.split(':')
+    print("Getting credentials with args:", args)
+    resource, target, namespace = args.path.split(":")
     all_secrets = {}
-    vault_root = os.path.join(REPO_ROOT, 'resources', 'vault', target)
+    vault_root = os.path.join(REPO_ROOT, "resources", "vault", target)
     resource_directories = os.listdir(vault_root)
     for resource_name in resource_directories:
         if resource_name != resource:
@@ -194,55 +186,50 @@ def handle_credentials_step(args: CredentialsStepArgs, temp_folder_path: str):
         if not os.path.isdir(env_dir):
             continue
 
-        with open(os.path.join(env_dir, '.env')) as secrets_file:
+        with open(os.path.join(env_dir, ".env")) as secrets_file:
             lines = secrets_file.readlines()
             for line in lines:
-                key, value = line.split('=')
+                key, value = line.split("=")
                 all_secrets[f"{resource_name.upper()}_{key.upper()}"] = value.strip()
 
-    credentials_path = os.path.join(
-        temp_folder_path, args.output_file.lstrip('./')
-    )
+    credentials_path = os.path.join(temp_folder_path, args.output_file.lstrip("./"))
     write_secrets_to_file(all_secrets, credentials_path)
 
     return 0
 
 
 def read_vault_database_secrets(repository: str, namespace: str) -> dict:
-    env_file = os.path.join(
-        REPO_ROOT, 'resources', 'vault', repository, 'database', namespace, '.env'
-    )
+    env_file = os.path.join(REPO_ROOT, "resources", "vault", repository, "database", namespace, ".env")
     secrets = {}
     with open(env_file) as secrets_file:
         for line in secrets_file:
             line = line.strip()
-            if not line or line.startswith('#'):
+            if not line or line.startswith("#"):
                 continue
-            key, value = line.split('=', 1)
+            key, value = line.split("=", 1)
             secrets[key.upper()] = value.strip()
     return secrets
 
 
 def resolve_cluster_database_host(namespace: str, secrets: dict) -> str:
     """Kubernetes Service DNS name for in-cluster clients (not minikube service URL)."""
-    host = secrets.get('CLUSTER_HOST', DEFAULT_POSTGRES_SERVICE)
+    host = secrets.get("CLUSTER_HOST", DEFAULT_POSTGRES_SERVICE)
     exit_code = execute_cli_command(
-        'minikube kubectl -- get svc '
-        f'{shlex.quote(host)} -n {shlex.quote(namespace)} >/dev/null 2>&1'
+        "minikube kubectl -- get svc " f"{shlex.quote(host)} -n {shlex.quote(namespace)} >/dev/null 2>&1"
     )
     if exit_code != 0:
         raise RuntimeError(
             f'PostgreSQL service "{host}" not found in namespace "{namespace}". '
-            'Install infra (helm postgresql) or set CLUSTER_HOST in vault database .env.'
+            "Install infra (helm postgresql) or set CLUSTER_HOST in vault database .env."
         )
     return host
 
 
 def wait_for_postgresql_ready(namespace: str) -> int:
     return execute_cli_command(
-        'minikube kubectl -- wait --for=condition=ready '
-        f'pod/{DEFAULT_POSTGRES_SERVICE}-0 -n {shlex.quote(namespace)} '
-        f'--timeout={POSTGRES_READY_TIMEOUT_SECONDS}s'
+        "minikube kubectl -- wait --for=condition=ready "
+        f"pod/{DEFAULT_POSTGRES_SERVICE}-0 -n {shlex.quote(namespace)} "
+        f"--timeout={POSTGRES_READY_TIMEOUT_SECONDS}s"
     )
 
 
@@ -251,11 +238,11 @@ def load_cluster_database_env(repository: str, namespace: str) -> dict:
     cluster_host = resolve_cluster_database_host(namespace, secrets)
 
     return {
-        'DATABASE_USER': secrets['USER'],
-        'DATABASE_PASSWORD': secrets['PASSWORD'],
-        'DATABASE_NAME': secrets['NAME'],
-        'DATABASE_PORT': secrets.get('PORT', DEFAULT_POSTGRES_PORT),
-        'DATABASE_HOST': cluster_host,
+        "DATABASE_USER": secrets["USER"],
+        "DATABASE_PASSWORD": secrets["PASSWORD"],
+        "DATABASE_NAME": secrets["NAME"],
+        "DATABASE_PORT": secrets.get("PORT", DEFAULT_POSTGRES_PORT),
+        "DATABASE_HOST": cluster_host,
     }
 
 
@@ -267,37 +254,36 @@ def run_in_cluster_migration_command(
     run_id: str,
 ) -> int:
     overrides = {
-        'spec': {
-            'containers': [{
-                'name': 'migrate',
-                'image': image,
-                'imagePullPolicy': 'Never',
-                'env': [
-                    {'name': key, 'value': value}
-                    for key, value in env_vars.items()
-                ],
-                'command': command_argv,
-            }],
+        "spec": {
+            "containers": [
+                {
+                    "name": "migrate",
+                    "image": image,
+                    "imagePullPolicy": "Never",
+                    "env": [{"name": key, "value": value} for key, value in env_vars.items()],
+                    "command": command_argv,
+                }
+            ],
         },
     }
-    pod_name = f'migrate-{run_id}'
+    pod_name = f"migrate-{run_id}"
     cmd = (
-        f'minikube kubectl -- run {shlex.quote(pod_name)} '
-        f'--rm -i --restart=Never -n {shlex.quote(namespace)} '
-        f'--image={shlex.quote(image)} '
-        f'--overrides={shlex.quote(json.dumps(overrides))}'
+        f"minikube kubectl -- run {shlex.quote(pod_name)} "
+        f"--rm -i --restart=Never -n {shlex.quote(namespace)} "
+        f"--image={shlex.quote(image)} "
+        f"--overrides={shlex.quote(json.dumps(overrides))}"
     )
     return execute_cli_command(cmd)
 
 
 def handle_database_migration_step(args: DatabaseMigrationStepArgs, temp_folder_path: str):
-    print('Migrating database in cluster with args:', args)
+    print("Migrating database in cluster with args:", args)
 
     exit_code = wait_for_postgresql_ready(args.env)
     if exit_code != 0:
         print(
             f'PostgreSQL is not ready in namespace "{args.env}" '
-            f'(waited {POSTGRES_READY_TIMEOUT_SECONDS}s for pod/{DEFAULT_POSTGRES_SERVICE}-0).'
+            f"(waited {POSTGRES_READY_TIMEOUT_SECONDS}s for pod/{DEFAULT_POSTGRES_SERVICE}-0)."
         )
         return exit_code
 
@@ -310,8 +296,8 @@ def handle_database_migration_step(args: DatabaseMigrationStepArgs, temp_folder_
         return exit_code
 
     database_env = load_cluster_database_env(args.repository, args.env)
-    image = f'{args.image_repo}-{args.env}:{args.env}'
-    run_id = datetime.now().strftime('%H%M%S%f')
+    image = f"{args.image_repo}-{args.env}:{args.env}"
+    run_id = datetime.now().strftime("%H%M%S%f")
 
     for index, command in enumerate(args.cmd):
         command_argv = shlex.split(command)
@@ -320,7 +306,7 @@ def handle_database_migration_step(args: DatabaseMigrationStepArgs, temp_folder_
             image,
             database_env,
             command_argv,
-            f'{run_id}-{index}',
+            f"{run_id}-{index}",
         )
         if exit_code != 0:
             return exit_code
@@ -329,35 +315,39 @@ def handle_database_migration_step(args: DatabaseMigrationStepArgs, temp_folder_
 
 
 step_kinds_processor = {
-    'database_migration': lambda args, path, pipeline_id, pipeline_started_at: handle_database_migration_step(DatabaseMigrationStepArgs(**args), path),
-    'credentials': lambda args, path, pipeline_id, pipeline_started_at: handle_credentials_step(CredentialsStepArgs(**args), path),
-    'install': lambda args, path, pipeline_id, pipeline_started_at: handle_install_step(InstallStepArgs(**args), path, pipeline_id, pipeline_started_at),
-    'publish': lambda args, path, pipeline_id, pipeline_started_at: handle_publish_step(PublishStepArgs(**args), path),
+    "database_migration": lambda args, path, pipeline_id, pipeline_started_at: handle_database_migration_step(
+        DatabaseMigrationStepArgs(**args), path
+    ),
+    "credentials": lambda args, path, pipeline_id, pipeline_started_at: handle_credentials_step(
+        CredentialsStepArgs(**args), path
+    ),
+    "install": lambda args, path, pipeline_id, pipeline_started_at: handle_install_step(
+        InstallStepArgs(**args), path, pipeline_id, pipeline_started_at
+    ),
+    "publish": lambda args, path, pipeline_id, pipeline_started_at: handle_publish_step(PublishStepArgs(**args), path),
 }
 
 
 def read_file(file_path: str):
-    with open(file_path, 'r') as file:
+    with open(file_path, "r") as file:
         return yaml.safe_load(file)
 
 
 def main(repository: str):
     print('echo "Pipeline started"')
 
-    tempfolder = os.path.join(SCRIPT_DIR, f'tmp-{repository}-pipeline')
-    app_source = os.path.join(REPO_ROOT, 'apps', repository)
-    gitignore = os.path.join(app_source, '.gitignore')
-    execute_cli_command(
-        f'rsync -r {app_source}/ {tempfolder}/ --exclude-from={gitignore}'
-    )
-    pipe = read_file(os.path.join(tempfolder, '.pipeline'))
+    tempfolder = os.path.join(SCRIPT_DIR, f"tmp-{repository}-pipeline")
+    app_source = os.path.join(REPO_ROOT, "apps", repository)
+    gitignore = os.path.join(app_source, ".gitignore")
+    execute_cli_command(f"rsync -r {app_source}/ {tempfolder}/ --exclude-from={gitignore}")
+    pipe = read_file(os.path.join(tempfolder, ".pipeline"))
     os.chdir(tempfolder)
 
     pipeline_id = str(uuid.uuid4())
     pipeline_started_at = datetime.now(timezone.utc).isoformat()
-    print(f'Pipeline id: {pipeline_id} (started at {pipeline_started_at})')
+    print(f"Pipeline id: {pipeline_id} (started at {pipeline_started_at})")
 
-    services = pipe.get('services', {})
+    services = pipe.get("services", {})
     running_services = []
     for service_name, service_args in services.items():
         running_service_id, exit_code = handle_service(
@@ -368,19 +358,17 @@ def main(repository: str):
         else:
             running_services.append(running_service_id)
 
-    steps = pipe.get('steps', {})
+    steps = pipe.get("steps", {})
     for step_name, step_args in steps.items():
-        print(
-            f'processing step: "{step_name}" in directory "{os.getcwd()}"'
-        )
-        kind = step_args.get('kind')
+        print(f'processing step: "{step_name}" in directory "{os.getcwd()}"')
+        kind = step_args.get("kind")
         processor = step_kinds_processor.get(kind)
         if processor:
             exit_code = processor(step_args, tempfolder, pipeline_id, pipeline_started_at)
             if exit_code != 0:
                 finish_pipeline(exit_code, tempfolder, running_services)
         else:
-            cmds = step_args.get('cmd', [])
+            cmds = step_args.get("cmd", [])
             for cmd in cmds:
                 exit_code = execute_cli_command(prepare_shell_command(cmd, step_name))
                 if exit_code != 0:
@@ -397,5 +385,5 @@ def cli(
     main(repository)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app()

@@ -1,0 +1,38 @@
+[flake8]
+# --- Core limits ---
+max-line-length = 120
+max-doc-length = 120
+max-complexity = 10
+indent-size = 4
+hang-closing = False
+
+# --- Plugins ---
+require-plugins =
+    flake8-bugbear,
+    flake8-comprehensions
+extend-select = B,C4
+
+# --- Lint scope: scripts/*.py only ---
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    .mypy_cache,
+    .pytest_cache,
+    tmp-*-pipeline,
+    build,
+    dist,
+    *.egg-info,
+    values.yaml,
+    Dockerfile,
+    Dockerfile.instrumented
+
+# --- Rule adjustments (formatter-friendly) ---
+extend-ignore =
+    E203,
+    W503,
+    B008
+
+# --- Output ---
+count = True
+show-source = True

@@ -1,5 +1,4 @@
 import os
-import shutil
 import tempfile
 import uuid
 import yaml
@@ -15,57 +14,51 @@ app = make_cli_app()
 
 
 def get_values_template_for(namespace: str) -> dict:
-    values_path = os.path.join(REPO_ROOT, 'envs', namespace, 'values.yaml')
+    values_path = os.path.join(REPO_ROOT, "envs", namespace, "values.yaml")
     with open(values_path) as values_file:
         return yaml.safe_load(values_file)
 
 
 def get_declared_values_for_app(env_file: str, namespace: str, path: str) -> dict:
-    override_path = os.path.join(
-        resolve_path(path), 'kube', namespace, env_file
-    )
+    override_path = os.path.join(resolve_path(path), "kube", namespace, env_file)
     with open(override_path) as override_file:
         return yaml.safe_load(override_file)
 
 
 def get_secrets_for_app(repository: str, namespace: str) -> dict:
     all_secrets = {}
-    vault_root = os.path.join(REPO_ROOT, 'resources', 'vault', repository)
+    vault_root = os.path.join(REPO_ROOT, "resources", "vault", repository)
     resource_directories = os.listdir(vault_root)
     for resource in resource_directories:
         env_dir = os.path.join(vault_root, resource, namespace)
         if not os.path.isdir(env_dir):
             continue
 
-        with open(os.path.join(env_dir, '.env')) as secrets_file:
+        with open(os.path.join(env_dir, ".env")) as secrets_file:
             lines = secrets_file.readlines()
             for line in lines:
-                key, value = line.split('=')
+                key, value = line.split("=")
                 all_secrets[f"{resource.upper()}_{key.upper()}"] = value.strip()
 
     return all_secrets
 
 
 def get_resources_for(app_name: str, namespace: str) -> dict:
-    resources_path = os.path.join(
-        REPO_ROOT, 'resources', app_name, f'{namespace}.yaml'
-    )
+    resources_path = os.path.join(REPO_ROOT, "resources", app_name, f"{namespace}.yaml")
     with open(resources_path) as resources_file:
         return yaml.safe_load(resources_file)
 
 
 def execute_helm_commands(app_name: str, repository: str, namespace: str, values: dict) -> int:
-    chart_path = os.path.join(REPO_ROOT, 'envs', namespace)
-    rendered_manifest = os.path.join(
-        REPO_ROOT, 'apps', repository, f'{app_name}-{namespace}.yaml'
-    )
+    chart_path = os.path.join(REPO_ROOT, "envs", namespace)
+    rendered_manifest = os.path.join(REPO_ROOT, "apps", repository, f"{app_name}-{namespace}.yaml")
 
     os.makedirs(os.path.dirname(rendered_manifest), exist_ok=True)
 
     with tempfile.NamedTemporaryFile(
-        mode='w',
-        suffix='.yaml',
-        prefix=f'{app_name}-values-',
+        mode="w",
+        suffix=".yaml",
+        prefix=f"{app_name}-values-",
         delete=False,
     ) as result:
         yaml.safe_dump(
@@ -79,15 +72,12 @@ def execute_helm_commands(app_name: str, repository: str, namespace: str, values
 
     try:
         template_exit = os.system(
-            f'helm template {app_name} {chart_path} -n {namespace} -f {values_file} >'
-            f' {rendered_manifest}'
+            f"helm template {app_name} {chart_path} -n {namespace} -f {values_file} >" f" {rendered_manifest}"
         )
         if template_exit != 0:
             return template_exit
 
-        return os.system(
-            f'helm upgrade --install {app_name} {chart_path} -n {namespace} -f {values_file}'
-        )
+        return os.system(f"helm upgrade --install {app_name} {chart_path} -n {namespace} -f {values_file}")
     finally:
         os.unlink(values_file)
 
@@ -104,56 +94,41 @@ def update_value(obj: dict, path: str, value):
 
 
 mapping_kube_to_helm_values = {
-    'cmd': 'container.cmd',
-    'args': 'container.args',
-    'port': 'service.port',
+    "cmd": "container.cmd",
+    "args": "container.args",
+    "port": "service.port",
 }
 
 
 def handle_probes(values: dict, key: str | None = None, value=None):
     if key is None and value is None:
-        has_liveness_http = values.get(
-            'livenessProbe').get('httpGet') is not None
-        has_readines_http = values.get(
-            'readinessProbe').get('httpGet') is not None
-        has_liveness_exec = values.get('livenessProbe').get('exec') is not None
-        has_readiness_exec = values.get(
-            'readinessProbe').get('exec') is not None
-        has_startup_http = values.get(
-            'startupProbe').get('httpGet') is not None
-        has_startup_exec = values.get('startupProbe').get('exec') is not None
+        has_liveness_http = values.get("livenessProbe").get("httpGet") is not None
+        has_readines_http = values.get("readinessProbe").get("httpGet") is not None
+        has_liveness_exec = values.get("livenessProbe").get("exec") is not None
+        has_readiness_exec = values.get("readinessProbe").get("exec") is not None
+        has_startup_http = values.get("startupProbe").get("httpGet") is not None
+        has_startup_exec = values.get("startupProbe").get("exec") is not None
 
         if not has_liveness_http and not has_liveness_exec:
-            update_value(values, 'livenessProbe', None)
+            update_value(values, "livenessProbe", None)
         if not has_readines_http and not has_readiness_exec:
-            update_value(values, 'readinessProbe', None)
+            update_value(values, "readinessProbe", None)
         if not has_startup_http and not has_startup_exec:
-            update_value(values, 'startupProbe', None)
+            update_value(values, "startupProbe", None)
 
         return
 
-    real_key = 'livenessProbe' if 'liveness' in key else 'readinessProbe'
+    real_key = "livenessProbe" if "liveness" in key else "readinessProbe"
     probe = None
-    if 'Cmd' in key:
-        probe = {
-            **values.get(real_key, {}),
-            'exec': {
-                'command': value
-            }
-        }
+    if "Cmd" in key:
+        probe = {**values.get(real_key, {}), "exec": {"command": value}}
         update_value(values, real_key, probe)
-    elif 'Path' in key:
-        probe = {
-            **values.get(real_key, {}),
-            'httpGet': {
-                'path': value,
-                'port': 'http'
-            }
-        }
+    elif "Path" in key:
+        probe = {**values.get(real_key, {}), "httpGet": {"path": value, "port": "http"}}
         update_value(values, real_key, probe)
 
-    if probe is not None and real_key == 'livenessProbe':
-        update_value(values, 'startupProbe', probe)
+    if probe is not None and real_key == "livenessProbe":
+        update_value(values, "startupProbe", probe)
 
 
 def resolve_pipeline_metadata(
@@ -178,33 +153,25 @@ def install_app(
 ) -> int:
     # os.system(f'k create namespace {namespace}')
     values = get_values_template_for(namespace)
-    override_value = get_declared_values_for_app(
-        environment_file,
-        namespace,
-        path
-    )
+    override_value = get_declared_values_for_app(environment_file, namespace, path)
 
     # declared values in app/kube is prioritized over values in envs
     override_value = {
         **override_value,
-        'env': {
+        "env": {
             **get_secrets_for_app(repository, namespace),
-            **override_value.get('env', {}),
-        }
+            **override_value.get("env", {}),
+        },
     }
 
-    values_ref = {key: value for key, value in values.items()}
-    update_value(values_ref, 'image.repository', f'{application}-{namespace}')
-    update_value(values_ref, 'image.tag', tag)
+    values_ref = dict(values)
+    update_value(values_ref, "image.repository", f"{application}-{namespace}")
+    update_value(values_ref, "image.tag", tag)
     for key, value in override_value.items():
-        if 'Probe' in key:
+        if "Probe" in key:
             handle_probes(values_ref, key, value)
         if key in mapping_kube_to_helm_values:
-            update_value(
-                values_ref,
-                mapping_kube_to_helm_values.get(key),
-                value
-            )
+            update_value(values_ref, mapping_kube_to_helm_values.get(key), value)
         elif key not in values_ref:
             values_ref[key] = value
         else:
@@ -222,10 +189,10 @@ def install_app(
         pipeline_id,
         pipeline_started_at,
     )
-    values_ref['podAnnotations'] = {
-        **values_ref.get('podAnnotations', {}),
-        'pipeline_id': resolved_pipeline_id,
-        'pipeline_deployed_at': resolved_pipeline_started_at,
+    values_ref["podAnnotations"] = {
+        **values_ref.get("podAnnotations", {}),
+        "pipeline_id": resolved_pipeline_id,
+        "pipeline_deployed_at": resolved_pipeline_started_at,
     }
 
     return execute_helm_commands(application, repository, namespace, values_ref)
@@ -241,7 +208,7 @@ def main(
     pipeline_id: str | None = None,
     pipeline_started_at: str | None = None,
 ) -> int:
-    tag = tag or 'latest'
+    tag = tag or "latest"
     return install_app(
         application,
         repository,
@@ -280,5 +247,5 @@ def cli(
     exit_on_failure(exit_code, f"Installation of {application} failed")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app()

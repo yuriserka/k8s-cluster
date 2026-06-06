@@ -1,0 +1,4 @@
+flake8>=7.0,<8
+flake8-bugbear>=24.0,<25
+flake8-comprehensions>=3.14,<4
+black>=24.0,<26
