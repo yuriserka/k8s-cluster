@@ -41,3 +41,6 @@ class Scheduler:
 
     def start(self):
         self.scheduler.start()
+
+    def shutdown(self, wait: bool = True) -> None:
+        self.scheduler.shutdown(wait=wait)

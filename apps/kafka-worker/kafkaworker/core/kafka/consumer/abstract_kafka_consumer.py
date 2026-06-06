@@ -1,4 +1,4 @@
-from asyncio import sleep, gather
+from asyncio import sleep, gather, to_thread
 import json
 import logging
 from typing import Generic, NamedTuple, Optional, TypeVar
@@ -34,6 +34,7 @@ class AbstractKafkaConsumer(ABC, Generic[T]):
 
     def __init__(self, topic: str):
         self.topic = topic
+        self._running = True
         self.consumer = KafkaConsumer(
             bootstrap_servers=config.get("KAFKA_BOOTSTRAP_SERVERS"),
             group_id=config.get("KAFKA_CONSUMER_GROUP_ID"),
@@ -43,10 +44,16 @@ class AbstractKafkaConsumer(ABC, Generic[T]):
         self.buffer: RetryBuffer[T] = {}
         logger.info(f"Consumer created for topic {self.topic}")
 
+    def request_shutdown(self) -> None:
+        if not self._running:
+            return
+        logger.info(f"Shutdown requested for topic {self.topic}")
+        self._running = False
+
     async def run(self):
         self.consumer.subscribe([self.topic])
         try:
-            while True:
+            while self._running:
                 await self._consume_messages()
         except Exception as e:
             logger.error(
@@ -59,7 +66,13 @@ class AbstractKafkaConsumer(ABC, Generic[T]):
     async def _consume_messages(self):
         for topic_partition, messages in self.buffer.items():
             await gather(*[self._retry_message(message, topic_partition) for message in messages])
-        pulled_messages = self.consumer.poll(max_records=5, timeout_ms=5000)
+        pulled_messages = await to_thread(
+            self.consumer.poll,
+            max_records=5,
+            timeout_ms=5000,
+        )
+        if not self._running:
+            return
         for topic_partition, messages in pulled_messages.items():
             await gather(*[self._base_handle_message(message, topic_partition) for message in messages])
 

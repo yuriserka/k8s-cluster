@@ -61,6 +61,10 @@ services:
       - uvicorn.workers.UvicornWorker
       - --bind
       - 0.0.0.0:8000
+      - --graceful-timeout
+      - "30"
+      - --timeout
+      - "60"
     networks:
       - k8s-cluster-local
     deploy:
