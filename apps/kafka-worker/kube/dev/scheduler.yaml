@@ -1,8 +1,9 @@
 cmd:
-  - "python"
+  - /docker-entrypoint.sh
 
 args:
-  - "manage.py"
+  - python
+  - manage.py
   - "start_scheduler"
 
 port: 8006

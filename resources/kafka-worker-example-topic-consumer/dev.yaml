@@ -13,3 +13,8 @@ autoscaling:
   # maxReplicas: 2
   # targetCPUUtilizationPercentage: 80
   # targetMemoryUtilizationPercentage: 80
+
+instrumentation:
+  enabled: true
+  pythonAgent:
+    version: "0.63b1"

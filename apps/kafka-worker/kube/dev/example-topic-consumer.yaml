@@ -1,8 +1,9 @@
 cmd:
-  - "python"
+  - /docker-entrypoint.sh
 
 args:
-  - "manage.py"
+  - python
+  - manage.py
   - "start_example_events_consumer"
 
 port: 8005

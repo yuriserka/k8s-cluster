@@ -1,7 +1,8 @@
 cmd:
-  - "python"
+  - /docker-entrypoint.sh
 
 args:
+  - python
   - "-m"
   - "gunicorn"
   - "kafkaworker.asgi:application"

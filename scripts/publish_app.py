@@ -132,6 +132,68 @@ def add_otel_to_java_dockerfile(
     return updated_dockerfile_path
 
 
+def _inject_python_otel_pip_install(content: str, distro_version: str) -> str:
+    otel_install = (
+        "    && pip install --no-cache-dir \\\n"
+        f"        opentelemetry-distro=={distro_version} \\\n"
+        "        opentelemetry-exporter-otlp \\\n"
+        "    && opentelemetry-bootstrap --action=install"
+    )
+    marker = "&& pip install --no-cache-dir -r requirements.txt"
+    if marker not in content:
+        raise RuntimeError("Cannot find requirements.txt pip install in Dockerfile deps stage")
+    if "opentelemetry-distro" in content:
+        return content
+    return content.replace(marker, f"{marker} \\\n{otel_install}", 1)
+
+
+def add_otel_to_python_dockerfile(
+    dockerfile_path: str,
+    distro_version: str,
+    repository: str,
+    enabled: bool,
+    namespace: str,
+    grafana_secrets: dict,
+) -> str:
+    fd, updated_dockerfile_path = tempfile.mkstemp(
+        suffix=".Dockerfile.instrumented",
+        prefix="publish-",
+    )
+    os.close(fd)
+    shutil.copy(dockerfile_path, updated_dockerfile_path)
+
+    with open(updated_dockerfile_path, "r+") as dockerfile:
+        content = dockerfile.read()
+        content = _inject_python_otel_pip_install(content, distro_version)
+
+        if enabled:
+            dfp = DockerfileParser()
+            dfp.content = content
+            otel_lines = (
+                f'ENV OTEL_RESOURCE_ATTRIBUTES="service.name={repository},'
+                f'service.namespace={namespace},deployment.environment={namespace}"\n'
+                f'ENV OTEL_EXPORTER_OTLP_ENDPOINT={grafana_secrets.get("OTEL_EXPORTER_OTLP_ENDPOINT")}\n'
+                f'ENV OTEL_EXPORTER_OTLP_PROTOCOL={grafana_secrets.get("OTEL_EXPORTER_OTLP_PROTOCOL")}\n'
+                f'ENV OTEL_EXPORTER_OTLP_HEADERS={grafana_secrets.get("OTEL_EXPORTER_OTLP_HEADERS")}\n'
+                f'ENV OTEL_TRACES_EXPORTER={grafana_secrets.get("OTEL_TRACES_EXPORTER", "otlp")}\n'
+                f'ENV OTEL_METRICS_EXPORTER={grafana_secrets.get("OTEL_METRICS_EXPORTER", "otlp")}\n'
+                f'ENV OTEL_LOGS_EXPORTER={grafana_secrets.get("OTEL_LOGS_EXPORTER", "otlp")}\n'
+            )
+            metric_interval = grafana_secrets.get("OTEL_METRIC_EXPORT_INTERVAL")
+            metric_timeout = grafana_secrets.get("OTEL_METRIC_EXPORT_TIMEOUT")
+            if metric_interval:
+                otel_lines += f"ENV OTEL_METRIC_EXPORT_INTERVAL={metric_interval}\n"
+            if metric_timeout:
+                otel_lines += f"ENV OTEL_METRIC_EXPORT_TIMEOUT={metric_timeout}\n"
+            _insert_lines_before_instruction(dfp, "ENTRYPOINT", otel_lines)
+            content = dfp.content
+
+        with open(updated_dockerfile_path, "w") as updated_dockerfile:
+            updated_dockerfile.write(content)
+
+    return updated_dockerfile_path
+
+
 def handle_instrumentation(
     repository: str,
     namespace: str,
@@ -163,6 +225,17 @@ def handle_instrumentation(
         original_dockerfile = os.path.join(build_context, "Dockerfile")
         if os.path.isfile(original_dockerfile):
             os.system(f"rm -f {original_dockerfile}")
+    elif "pythonAgent" in instrumentation:
+        python_agent = instrumentation.get("pythonAgent", {})
+        distro_version = python_agent.get("version", "latest")
+        dockerfile_abs = add_otel_to_python_dockerfile(
+            dockerfile_abs,
+            distro_version,
+            repository,
+            is_enabled,
+            namespace,
+            grafana_secrets,
+        )
 
     return dockerfile_abs
 
