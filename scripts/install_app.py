@@ -1,4 +1,6 @@
 import os
+import shutil
+import tempfile
 import uuid
 import yaml
 from datetime import datetime, timezone
@@ -7,7 +9,7 @@ from typing import Optional
 import typer
 
 from cli_common import exit_on_failure, make_cli_app
-from repo_paths import REPO_ROOT, SCRIPT_DIR, resolve_path
+from repo_paths import REPO_ROOT, resolve_path
 
 app = make_cli_app()
 
@@ -57,11 +59,15 @@ def execute_helm_commands(app_name: str, repository: str, namespace: str, values
     rendered_manifest = os.path.join(
         REPO_ROOT, 'apps', repository, f'{app_name}-{namespace}.yaml'
     )
-    values_file = os.path.join(SCRIPT_DIR, 'values.yaml')
 
     os.makedirs(os.path.dirname(rendered_manifest), exist_ok=True)
 
-    with open(values_file, 'w') as result:
+    with tempfile.NamedTemporaryFile(
+        mode='w',
+        suffix='.yaml',
+        prefix=f'{app_name}-values-',
+        delete=False,
+    ) as result:
         yaml.safe_dump(
             values,
             result,
@@ -69,17 +75,21 @@ def execute_helm_commands(app_name: str, repository: str, namespace: str, values
             default_flow_style=None,
             allow_unicode=True,
         )
+        values_file = result.name
 
-    template_exit = os.system(
-        f'helm template {app_name} {chart_path} -n {namespace} -f {values_file} >'
-        f' {rendered_manifest}'
-    )
-    if template_exit != 0:
-        return template_exit
+    try:
+        template_exit = os.system(
+            f'helm template {app_name} {chart_path} -n {namespace} -f {values_file} >'
+            f' {rendered_manifest}'
+        )
+        if template_exit != 0:
+            return template_exit
 
-    return os.system(
-        f'helm upgrade --install {app_name} {chart_path} -n {namespace} -f {values_file}'
-    )
+        return os.system(
+            f'helm upgrade --install {app_name} {chart_path} -n {namespace} -f {values_file}'
+        )
+    finally:
+        os.unlink(values_file)
 
 
 def update_value(obj: dict, path: str, value):

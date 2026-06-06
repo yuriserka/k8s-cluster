@@ -1,6 +1,8 @@
 import json
 import os
 import shlex
+import shutil
+import tempfile
 from typing import Optional
 
 import typer
@@ -26,13 +28,17 @@ def run_docker_build(
     which often fails with: lstat /home/<user>: no such file or directory
     """
     dockerfile_rel = os.path.relpath(dockerfile_abs, build_context)
+    if dockerfile_rel.startswith('..'):
+        dockerfile_for_build = dockerfile_abs
+    else:
+        dockerfile_for_build = dockerfile_rel
     build_arg_flags = ''.join(
         f' --build-arg {shlex.quote(f"{key}={value}")}'
         for key, value in (build_args or {}).items()
     )
     inner = (
         f'cd {shlex.quote(build_context)} && '
-        f'docker build -t {shlex.quote(image)} -f {shlex.quote(dockerfile_rel)}{build_arg_flags} .'
+        f'docker build -t {shlex.quote(image)} -f {shlex.quote(dockerfile_for_build)}{build_arg_flags} .'
     )
     if use_minikube_docker:
         inner = f'eval "$(minikube docker-env --shell bash)" && {inner}'
@@ -83,13 +89,14 @@ def add_otel_to_java_dockerfile(
     namespace: str,
     grafana_secrets: dict
 ) -> str:
-    updated_dockerfile_path = dockerfile_path.replace(
-        'Dockerfile',
-        'Dockerfile.instrumented'
+    fd, updated_dockerfile_path = tempfile.mkstemp(
+        suffix='.Dockerfile.instrumented',
+        prefix='publish-',
     )
+    os.close(fd)
+    shutil.copy(dockerfile_path, updated_dockerfile_path)
 
-    os.system(f'cp {dockerfile_path} {updated_dockerfile_path}')
-    with open(updated_dockerfile_path, 'r') as dockerfile:
+    with open(updated_dockerfile_path, 'r+') as dockerfile:
         dfp = DockerfileParser()
         dfp.content = dockerfile.read()
 
@@ -178,29 +185,29 @@ def main(
     image = f'{repository}-{namespace}:{tag}'
     build_context = resolve_path(path)
     original_dockerfile = os.path.join(build_context, dockerfile_path)
-    dockerfile_abs = handle_instrumentation(
-        repository, namespace, dockerfile_path, build_context
-    )
-    instrumented = dockerfile_abs != original_dockerfile
-
-    build_result = run_docker_build(
-        image,
-        dockerfile_abs,
-        build_context,
-        use_minikube_docker=intra_cluster,
-        build_args=build_args,
-    )
-    if build_result == 0:
+    instrumented_dockerfile = None
+    try:
+        dockerfile_abs = handle_instrumentation(
+            repository, namespace, dockerfile_path, build_context
+        )
+        instrumented = dockerfile_abs != original_dockerfile
         if instrumented:
-            os.system(f'rm -f {dockerfile_abs}')
+            instrumented_dockerfile = dockerfile_abs
+
+        build_result = run_docker_build(
+            image,
+            dockerfile_abs,
+            build_context,
+            use_minikube_docker=intra_cluster,
+            build_args=build_args,
+        )
+        if build_result != 0:
+            target = 'minikube docker' if intra_cluster else 'local docker'
+            print(f'Failed to build image {image} using {target}.')
         return build_result
-
-    target = 'minikube docker' if intra_cluster else 'local docker'
-    print(f'Failed to build image {image} using {target}.')
-    if instrumented:
-        os.system(f'rm -f {dockerfile_abs}')
-
-    return build_result
+    finally:
+        if instrumented_dockerfile and os.path.isfile(instrumented_dockerfile):
+            os.unlink(instrumented_dockerfile)
 
 
 @app.command()
