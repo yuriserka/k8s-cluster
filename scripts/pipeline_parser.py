@@ -2,9 +2,10 @@ from typing import NamedTuple
 import json
 import shlex
 import time
+import uuid
 import yaml
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 from repo_paths import REPO_ROOT, SCRIPT_DIR
 
@@ -131,12 +132,19 @@ def handle_service(service_name: str, repository: str, args: ServiceArgs, temp_f
     return container_id, wait_for_docker_postgres(container_id, pg_user)
 
 
-def handle_install_step(args: InstallStepArgs, temp_folder_path: str):
+def handle_install_step(
+    args: InstallStepArgs,
+    temp_folder_path: str,
+    pipeline_id: str,
+    pipeline_started_at: str,
+):
     print('Installing app with args:', args)
     install_script = os.path.join(SCRIPT_DIR, 'install_app.py')
     return execute_cli_command(
         f'python {install_script} -r {args.repo} -a {args.application} '
-        f'-e {args.params_file} -p {temp_folder_path} -n {args.env} -t {args.env}'
+        f'-e {args.params_file} -p {temp_folder_path} -n {args.env} -t {args.env} '
+        f'--pipeline-id {shlex.quote(pipeline_id)} '
+        f'--pipeline-started-at {shlex.quote(pipeline_started_at)}'
     )
 
 
@@ -308,10 +316,10 @@ def handle_database_migration_step(args: DatabaseMigrationStepArgs, temp_folder_
 
 
 step_kinds_processor = {
-    'database_migration': lambda args, path: handle_database_migration_step(DatabaseMigrationStepArgs(**args), path),
-    'credentials': lambda args, path: handle_credentials_step(CredentialsStepArgs(**args), path),
-    'install': lambda args, path: handle_install_step(InstallStepArgs(**args), path),
-    'publish': lambda args, path: handle_publish_step(PublishStepArgs(**args), path),
+    'database_migration': lambda args, path, pipeline_id, pipeline_started_at: handle_database_migration_step(DatabaseMigrationStepArgs(**args), path),
+    'credentials': lambda args, path, pipeline_id, pipeline_started_at: handle_credentials_step(CredentialsStepArgs(**args), path),
+    'install': lambda args, path, pipeline_id, pipeline_started_at: handle_install_step(InstallStepArgs(**args), path, pipeline_id, pipeline_started_at),
+    'publish': lambda args, path, pipeline_id, pipeline_started_at: handle_publish_step(PublishStepArgs(**args), path),
 }
 
 
@@ -332,6 +340,10 @@ def main(repository: str):
     pipe = read_file(os.path.join(tempfolder, '.pipeline'))
     os.chdir(tempfolder)
 
+    pipeline_id = str(uuid.uuid4())
+    pipeline_started_at = datetime.now(timezone.utc).isoformat()
+    print(f'Pipeline id: {pipeline_id} (started at {pipeline_started_at})')
+
     services = pipe.get('services', {})
     running_services = []
     for service_name, service_args in services.items():
@@ -351,7 +363,7 @@ def main(repository: str):
         kind = step_args.get('kind')
         processor = step_kinds_processor.get(kind)
         if processor:
-            exit_code = processor(step_args, tempfolder)
+            exit_code = processor(step_args, tempfolder, pipeline_id, pipeline_started_at)
             if exit_code != 0:
                 finish_pipeline(exit_code, tempfolder, running_services)
         else:

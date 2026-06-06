@@ -24,7 +24,7 @@ For cluster workflows, start infra from the [project README](../README.md) first
 | [`pipeline_parser.py`](pipeline_parser.py) | Runs an app's full `.pipeline` file (services + steps) |
 | [`create_database.py`](create_database.py) | Creates a PostgreSQL database in the cluster and grants the app user ownership of the DB and `public` schema (PG15+) |
 | [`publish_app.py`](publish_app.py) | Builds a Docker image for one application component |
-| [`install_app.py`](install_app.py) | Renders Helm values and installs/upgrades a release in Kubernetes |
+| [`install_app.py`](install_app.py) | Renders Helm values and runs `helm upgrade --install`; stamps pods with pipeline metadata |
 | [`remove_all_pods.py`](remove_all_pods.py) | Uninstalls every Helm release declared by `kind: install` steps in an app's `.pipeline` |
 | [`repo_paths.py`](repo_paths.py) | Shared `REPO_ROOT`, `SCRIPT_DIR`, and `resolve_path()` used by the scripts above |
 
@@ -86,7 +86,7 @@ python publish_app.py -r kafka-worker-api -d Dockerfile -p /path/to/build/contex
 
 Optional OpenTelemetry instrumentation is applied when enabled in `../resources/<repo>/<namespace>.yaml`.
 
-**Install** — Helm install or upgrade:
+**Install** — idempotent Helm deploy (`helm upgrade --install`):
 
 ```bash
 python install_app.py -r kafka-worker -a kafka-worker-api -e api.yaml -p /path/to/app -n dev -t dev
@@ -100,8 +100,18 @@ python install_app.py -r kafka-worker -a kafka-worker-api -e api.yaml -p /path/t
 | `-p` | App directory (chart context) |
 | `-n` | Kubernetes namespace |
 | `-t` | Image tag written into values (default: `latest`) |
+| `--pipeline-id` | UUID for this deploy (optional; auto-generated if omitted) |
+| `--pipeline-started-at` | ISO-8601 UTC timestamp (optional; auto-generated if omitted) |
 
 Merges, in order: `envs/<namespace>/values.yaml`, app `kube/<namespace>/` overrides, `resources/vault/<repo>/`, and `resources/<application>/<namespace>.yaml` (all under `REPO_ROOT`).
+
+Each install writes pod annotations `pipeline_id` and `pipeline_deployed_at` so repeated deploys with the same image tag still roll out new pods. When run via [`pipeline_parser.py`](pipeline_parser.py), all `install` steps in one pipeline run share the same `pipeline_id` and timestamp.
+
+Inspect on a running pod:
+
+```bash
+minikube kubectl -- get pod -n dev -l app.kubernetes.io/instance=kafka-worker-api -o yaml | grep pipeline_
+```
 
 ## `pipeline_parser.py` step kinds
 
@@ -114,7 +124,7 @@ Defined in each app's `apps/<repo>/.pipeline`:
 | `credentials` | Writes vault secrets to `output_file` (`path` format: `database:<target>:<namespace>`) |
 | `database_migration` | In-cluster migrate via `kubectl run` (no port-forward); see below |
 | `publish` | Calls `publish_app.py` with `-t` set to the step `env` (same as `-n`) |
-| `install` | Calls `install_app.py` with `-t` set to the step `env` |
+| `install` | Calls `install_app.py` with `-t` set to the step `env` and shared pipeline metadata (`pipeline_id`, ISO timestamp) |
 
 ### Pipeline `services` (optional)
 

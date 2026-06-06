@@ -1,5 +1,7 @@
 import os
+import uuid
 import yaml
+from datetime import datetime, timezone
 
 from repo_paths import REPO_ROOT, SCRIPT_DIR, resolve_path
 
@@ -62,19 +64,16 @@ def execute_helm_commands(app_name: str, repository: str, namespace: str, values
             allow_unicode=True,
         )
 
-    os.system(
+    template_exit = os.system(
         f'helm template {app_name} {chart_path} -n {namespace} -f {values_file} >'
         f' {rendered_manifest}'
     )
-    app_installed = os.system(
-        f'helm install {app_name} {chart_path} -n {namespace} -f {values_file}'
-    )
-    if app_installed != 0:
-        app_installed = os.system(
-            f'helm upgrade {app_name} {chart_path} -n {namespace} -f {values_file}'
-        )
+    if template_exit != 0:
+        return template_exit
 
-    return app_installed
+    return os.system(
+        f'helm upgrade --install {app_name} {chart_path} -n {namespace} -f {values_file}'
+    )
 
 
 def update_value(obj: dict, path: str, value):
@@ -141,13 +140,25 @@ def handle_probes(values: dict, key: str | None = None, value=None):
         update_value(values, 'startupProbe', probe)
 
 
+def resolve_pipeline_metadata(
+    pipeline_id: str | None,
+    pipeline_started_at: str | None,
+) -> tuple[str, str]:
+    return (
+        pipeline_id or str(uuid.uuid4()),
+        pipeline_started_at or datetime.now(timezone.utc).isoformat(),
+    )
+
+
 def install_app(
     application: str,
     repository: str,
     environment_file: str,
     namespace: str,
     path: str,
-    tag: str = None
+    tag: str = None,
+    pipeline_id: str | None = None,
+    pipeline_started_at: str | None = None,
 ) -> int:
     # os.system(f'k create namespace {namespace}')
     values = get_values_template_for(namespace)
@@ -191,12 +202,49 @@ def install_app(
         else:
             values_ref[key] = {**values_ref[key], **value}
 
+    resolved_pipeline_id, resolved_pipeline_started_at = resolve_pipeline_metadata(
+        pipeline_id,
+        pipeline_started_at,
+    )
+    values_ref['podAnnotations'] = {
+        **values_ref.get('podAnnotations', {}),
+        'pipeline_id': resolved_pipeline_id,
+        'pipeline_deployed_at': resolved_pipeline_started_at,
+    }
+
     return execute_helm_commands(application, repository, namespace, values_ref)
 
 
-def main(application: str, repository: str, environment_file: str, namespace: str, path: str, tag: str) -> int:
+def main(
+    application: str,
+    repository: str,
+    environment_file: str,
+    namespace: str,
+    path: str,
+    tag: str,
+    pipeline_id: str | None = None,
+    pipeline_started_at: str | None = None,
+) -> int:
     tag = tag or 'latest'
-    return install_app(application, repository, environment_file, namespace, path, tag)
+    return install_app(
+        application,
+        repository,
+        environment_file,
+        namespace,
+        path,
+        tag,
+        pipeline_id,
+        pipeline_started_at,
+    )
+
+
+def _optional_flag_value(args: list[str], flag: str) -> str | None:
+    if flag not in args:
+        return None
+    index = args.index(flag) + 1
+    if index >= len(args):
+        return None
+    return args[index]
 
 
 if __name__ == '__main__':
@@ -224,6 +272,8 @@ if __name__ == '__main__':
     namespace = args[args.index("-n") + 1]
     repository = args[args.index("-r") + 1]
     tag = args[args.index("-t") + 1] if "-t" in args else None
+    pipeline_id = _optional_flag_value(args, '--pipeline-id')
+    pipeline_started_at = _optional_flag_value(args, '--pipeline-started-at')
 
     exit_code = main(
         application,
@@ -231,7 +281,9 @@ if __name__ == '__main__':
         environment_file,
         namespace,
         path,
-        tag
+        tag,
+        pipeline_id,
+        pipeline_started_at,
     )
 
     if exit_code != 0:

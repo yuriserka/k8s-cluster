@@ -64,7 +64,8 @@ spec:
   template:
     metadata:
       annotations:
-        rollme: "GF5cz"
+        pipeline_deployed_at: "2026-06-06T01:40:02.337363+00:00"
+        pipeline_id: 1b642298-1b93-453b-ad8f-30b99fb7bdcb
       labels:
         helm.sh/chart: dev-0.1.0
         app.kubernetes.io/name: dev
