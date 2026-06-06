@@ -1,6 +1,6 @@
 resources:
   limits:
-    cpu: 400m
+    cpu: 1000m
     memory: 1Gi
 
   requests:
@@ -15,7 +15,6 @@ autoscaling:
   # targetMemoryUtilizationPercentage: 80
 
 instrumentation:
-  otel:
-    enabled: true
-    javaAgent:
-      version: 2.15.0
+  enabled: true
+  javaAgent:
+    version: 2.15.0

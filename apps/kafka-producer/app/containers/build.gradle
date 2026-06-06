@@ -7,6 +7,11 @@ bootJar {
 }
 
 subprojects {
+	dependencies {
+		// core entities use JPA annotations; compileOnly avoids "unknown enum constant GenerationType" warnings.
+		compileOnly 'jakarta.persistence:jakarta.persistence-api'
+	}
+
 	tasks.named('codeChecks').configure {
 		dependsOn project(':app:core').tasks.named('codeChecks')
 	}

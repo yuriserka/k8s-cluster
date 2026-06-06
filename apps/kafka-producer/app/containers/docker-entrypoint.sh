@@ -11,4 +11,8 @@ case "${OTEL_JAVAAGENT_ENABLED}" in
     ;;
 esac
 
-exec java ${agent} -jar "-Dspring.profiles.active=${profile}" "${jar}"
+exec java ${agent} \
+  -XX:+UseContainerSupport \
+  -XX:TieredStopAtLevel=1 \
+  -Dspring.backgroundpreinitializer.ignore=true \
+  -jar "-Dspring.profiles.active=${profile}" "${jar}"

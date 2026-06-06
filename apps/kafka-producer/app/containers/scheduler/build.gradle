@@ -2,6 +2,12 @@ jar {
     enabled = false
 }
 
+tasks.named('bootJar') {
+    layered {
+        enabled = true
+    }
+}
+
 dependencies {
     implementation project(':app:core')
     testImplementation testFixtures(project(':app:core'))

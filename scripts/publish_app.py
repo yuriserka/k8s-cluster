@@ -60,6 +60,21 @@ def read_env_file(env_file: str):
     return all_secrets
 
 
+def _insert_lines_before_instruction(
+    dfp: DockerfileParser, instruction: str, lines: str
+) -> None:
+    """Insert lines before the first Dockerfile instruction (handles multi-line CMD)."""
+    prefix = f'{instruction.upper()} '
+    content_lines = dfp.content.splitlines(keepends=True)
+    for index, line in enumerate(content_lines):
+        if line.lstrip().upper().startswith(prefix):
+            for insert_line in reversed(lines.splitlines(keepends=True)):
+                content_lines.insert(index, insert_line)
+            dfp.content = ''.join(content_lines)
+            return
+    raise RuntimeError(f'Cannot find {instruction} instruction in Dockerfile')
+
+
 def add_otel_to_java_dockerfile(
     dockerfile_path: str,
     java_agent_version: str,
@@ -79,24 +94,30 @@ def add_otel_to_java_dockerfile(
         dfp.content = dockerfile.read()
 
         cmd: list[str] = json.loads(dfp.cmd)
-        jar_args = cmd.index('-jar')
         java_arg = cmd.index('java')
+        if '-jar' in cmd:
+            jar_index = cmd.index('-jar')
+            jvm_args = cmd[java_arg + 1:jar_index]
+            cmd_tail = cmd[jar_index:]
+        else:
+            jvm_args = []
+            cmd_tail = cmd[java_arg + 1:]
 
-        dfp.add_lines_at(
-            f'CMD {dfp.cmd}\n',
+        otel_lines = (
             f'ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v{java_agent_version}/opentelemetry-javaagent.jar /app/opentelemetry-javaagent.jar\n'
             f'ENV OTEL_RESOURCE_ATTRIBUTES="service.name={repository},service.namespace={namespace},deployment.environment={namespace}"\n'
             f'ENV OTEL_EXPORTER_OTLP_ENDPOINT={grafana_secrets.get("OTEL_EXPORTER_OTLP_ENDPOINT")}\n'
             f'ENV OTEL_EXPORTER_OTLP_PROTOCOL={grafana_secrets.get("OTEL_EXPORTER_OTLP_PROTOCOL")}\n'
             f'ENV OTEL_EXPORTER_OTLP_HEADERS={grafana_secrets.get("OTEL_EXPORTER_OTLP_HEADERS")}\n'
-            f'ENV OTEL_JAVAAGENT_ENABLED="{json.dumps(enabled)}"\n',
-            after=False,
+            f'ENV OTEL_JAVAAGENT_ENABLED="{json.dumps(enabled)}"\n'
         )
+        _insert_lines_before_instruction(dfp, 'CMD', otel_lines)
 
         dfp.cmd = json.dumps([
             *cmd[:java_arg + 1],
             '-javaagent:/app/opentelemetry-javaagent.jar',
-            *cmd[jar_args:]
+            *jvm_args,
+            *cmd_tail,
         ])
 
         with open(updated_dockerfile_path, 'w') as updated_dockerfile:
