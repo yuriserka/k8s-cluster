@@ -16,20 +16,23 @@ Each README covers **run** (env vars) and **tests** for that piece. Lint and cov
 
 From this directory, with [minikube docker-env](../../README.md#startingstoping) only if you build images for the cluster:
 
+[`compose.yaml`](compose.yaml) is self-contained: API, scheduler, Postgres, Kafka, and LocalStack on network **`k8s-cluster-local`**. Fixed container names let another compose project reuse the same infra without any cross-app config.
+
 ```bash
 docker compose up --build
 ```
 
 - API: http://localhost:8080  
 - Scheduler actuator: http://localhost:8081/actuator/health  
+- Postgres: localhost:5432 (database `kafka-producer`)  
+- Kafka: localhost:9092  
+- LocalStack: localhost:4566  
 
 Create Kafka topic `example-topic` — [Kafka infra README](../infra/kafka/README.md).
 
-**Port note:** Compose binds Postgres `5432` and Kafka `9092` on the host. Do not run [kafka-worker](../kafka-worker/compose.yaml) at the same time on those ports.
-
 ## Grafana / OpenTelemetry (compose)
 
-Compose loads OTLP credentials and exporter settings from the same vault file as kafka-worker:
+Compose loads OTLP credentials and exporter settings from:
 
 `resources/vault/_admin/grafana/dev/.env` (copy from [`.env.example`](../../resources/vault/_admin/grafana/dev/.env.example) and set `OTEL_EXPORTER_OTLP_ENDPOINT` + `OTEL_EXPORTER_OTLP_HEADERS` from Grafana Cloud → your stack → OpenTelemetry → Configure).
 
@@ -64,7 +67,7 @@ From `apps/kafka-producer/`:
 |------|---------|
 | Makefile (all targets) | `make help` |
 | Lint + test gate | `make check` |
-| Migrate (compose Postgres) | `make migrate` *(start postgres first: `make compose-up-d`)* |
+| Migrate (compose Postgres) | `make migrate` *(start postgres first: `docker compose up -d postgres`)* |
 | Lint (Checkstyle + PMD, all modules) | `./gradlew codeChecks` or `make code-checks` |
 | Lint (api + core) | `./gradlew :app:containers:api:codeChecks` |
 | Lint (scheduler + core) | `./gradlew :app:containers:scheduler:codeChecks` |

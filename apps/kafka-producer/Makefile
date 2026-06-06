@@ -9,7 +9,7 @@ COMPOSE_DB_HOST := localhost
 COMPOSE_DB_PORT := 5432
 COMPOSE_DB_NAME := kafka-producer
 
-.PHONY: help install code-checks test build check compose-up compose-up-d \
+.PHONY: help install code-checks test build check \
 	docker-build-api docker-build-scheduler docker-build-migrate migrate pipeline
 
 help:
@@ -19,8 +19,6 @@ help:
 	@echo "  make test                 ./gradlew test -x bootJar (pipeline test)"
 	@echo "  make build                ./gradlew bootJar"
 	@echo "  make check                code-checks then test"
-	@echo "  make compose-up           docker compose up --build"
-	@echo "  make compose-up-d         docker compose up -d --build"
 	@echo "  make docker-build-api     Build api dev image locally"
 	@echo "  make docker-build-scheduler Build scheduler dev image locally"
 	@echo "  make docker-build-migrate Build migrate image locally"
@@ -40,12 +38,6 @@ build:
 	$(GRADLE) bootJar
 
 check: code-checks test
-
-compose-up:
-	docker compose up --build
-
-compose-up-d:
-	docker compose up -d --build
 
 docker-build-api:
 	docker build -t kafka-producer-api-local:latest -f $(DOCKERFILE_DEV) --build-arg CONTAINER=api .

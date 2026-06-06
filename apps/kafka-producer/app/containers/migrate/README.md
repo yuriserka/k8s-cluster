@@ -17,7 +17,7 @@ From the [kafka-producer](../../../) repo root, with Postgres reachable:
 **Docker Compose** ([`compose.yaml`](../../../compose.yaml) uses `ysdcr` / `ysdcr`, db `kafka-producer`, port `5432`):
 
 ```bash
-make compose-up-d    # or: docker compose up -d postgres
+docker compose up -d postgres
 make migrate
 ```
 

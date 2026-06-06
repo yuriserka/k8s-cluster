@@ -18,6 +18,11 @@ x-otel-vault-env-file: &otel-vault-env-file
 x-aws-vault-env-file: &aws-vault-env-file
   ../../resources/vault/_admin/aws/dev/.env
 
+networks:
+  k8s-cluster-local:
+    name: k8s-cluster-local
+    driver: bridge
+
 services:
   api:
     image: kafka-worker-api-local:latest
@@ -30,6 +35,7 @@ services:
       - "8000:8000"
     depends_on:
       - postgres
+      - kafka
       - localstack
     env_file:
       - *otel-vault-env-file
@@ -45,6 +51,8 @@ services:
       - uvicorn.workers.UvicornWorker
       - --bind
       - 0.0.0.0:8000
+    networks:
+      - k8s-cluster-local
     deploy:
       resources:
         limits:
@@ -75,6 +83,8 @@ services:
       - python
       - manage.py
       - start_scheduler
+    networks:
+      - k8s-cluster-local
     deploy:
       resources:
         limits:
@@ -110,6 +120,8 @@ services:
       - python
       - manage.py
       - start_example_events_consumer
+    networks:
+      - k8s-cluster-local
     deploy:
       resources:
         limits:
@@ -121,16 +133,22 @@ services:
     restart: always
 
   postgres:
+    container_name: k8s-cluster-postgres
     image: bitnami/postgresql:16
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/bitnami/postgresql
+      - ./initdb:/docker-entrypoint-initdb.d:ro
     environment:
       POSTGRESQL_USERNAME: ysdcr
       POSTGRESQL_PASSWORD: ysdcr
       POSTGRESQL_POSTGRES_PASSWORD: admin
-      POSTGRESQL_DATABASE: kafka-worker
+      POSTGRESQL_DATABASE: kafka-producer
+    networks:
+      k8s-cluster-local:
+        aliases:
+          - postgres
     deploy:
       resources:
         limits:
@@ -141,6 +159,7 @@ services:
           memory: 128M
 
   kafka:
+    container_name: k8s-cluster-kafka
     image: bitnamilegacy/kafka:4.0.0-debian-12-r10
     ports:
       - "9092:9092"
@@ -155,6 +174,10 @@ services:
       KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
       KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+    networks:
+      k8s-cluster-local:
+        aliases:
+          - kafka
     deploy:
       resources:
         limits:
@@ -165,7 +188,7 @@ services:
           memory: 256M
 
   localstack:
-    container_name: localstack-main
+    container_name: k8s-cluster-localstack
     image: localstack/localstack
     ports:
       - "127.0.0.1:4566:4566"
@@ -175,8 +198,12 @@ services:
     environment:
       DEBUG: "0"
     volumes:
-      - ./volume:/var/lib/localstack
+      - localstack_data:/var/lib/localstack
       - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      k8s-cluster-local:
+        aliases:
+          - localstack
     deploy:
       resources:
         limits:
@@ -188,6 +215,8 @@ services:
 
 volumes:
   postgres_data:
-    driver: local
+    name: k8s-cluster-postgres-data
   kafka_data:
-    driver: local
+    name: k8s-cluster-kafka-data
+  localstack_data:
+    name: k8s-cluster-localstack-data

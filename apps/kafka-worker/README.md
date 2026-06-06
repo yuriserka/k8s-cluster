@@ -22,18 +22,18 @@ From this directory:
 docker compose up --build
 ```
 
-| Service | URL / port |
-|---------|------------|
+[`compose.yaml`](compose.yaml) is self-contained: API, scheduler, consumer, Postgres, Kafka, and LocalStack on network **`k8s-cluster-local`**. Fixed container names let another compose project reuse the same infra without any cross-app config. Init script [`initdb/`](initdb/) creates database `kafka-worker` on first Postgres volume init.
+
+| Service | Host port |
+|---------|-----------|
 | API | http://localhost:8000 |
-| Scheduler | port 8006 (process only) |
-| Consumer | port 8005 (process only) |
-| Postgres | localhost:5432 |
+| Scheduler | port 8006 |
+| Consumer | port 8005 |
+| Postgres | localhost:5432 (database `kafka-worker`; also `kafka-producer` if that stack started Postgres first) |
 | Kafka | localhost:9092 |
 | LocalStack | localhost:4566 |
 
 Create Kafka topic `example-topic` — [Kafka infra README](../infra/kafka/README.md).
-
-**Port note:** Do not run [kafka-producer](../kafka-producer/compose.yaml) at the same time on **5432** / **9092**.
 
 **Vault files for compose:**
 

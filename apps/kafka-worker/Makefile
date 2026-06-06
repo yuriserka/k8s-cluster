@@ -7,7 +7,7 @@ PIP := $(VENV)/bin/pip
 DOCKERFILE_DEV := kafkaworker/containers/Dockerfile.dev
 
 .PHONY: help venv create-env install install-requirements code-checks test format check \
-	compose-up compose-up-d docker-build-api docker-build-scheduler docker-build-consumer migrate pipeline
+	docker-build-api docker-build-scheduler docker-build-consumer migrate pipeline
 
 help:
 	@echo "kafka-worker targets:"
@@ -17,8 +17,6 @@ help:
 	@echo "  make test                 run_tests.py with coverage (pipeline test step)"
 	@echo "  make format               Apply black to kafkaworker/"
 	@echo "  make check                code-checks then test"
-	@echo "  make compose-up           docker compose up --build"
-	@echo "  make compose-up-d         docker compose up -d --build"
 	@echo "  make docker-build-api     Build api dev image locally"
 	@echo "  make docker-build-scheduler Build scheduler dev image locally"
 	@echo "  make docker-build-consumer  Build example-topic-consumer dev image locally"
@@ -45,12 +43,6 @@ format: install
 	$(PYTHON) -m black kafkaworker
 
 check: code-checks test
-
-compose-up:
-	docker compose up --build
-
-compose-up-d:
-	docker compose up -d --build
 
 docker-build-api:
 	docker build -t kafka-worker-api-local:latest -f $(DOCKERFILE_DEV) --build-arg CONTAINER=api .
