@@ -11,6 +11,8 @@ Schema and migrations live in [`app/core`](../../core) (`flyway.conf` for Gradle
 
 **Prerequisites:** JDK **21** for local Gradle runs; Docker for the container image.
 
+> **Compose does not auto-migrate.** After `docker compose up`, run `make migrate` (see Option A) before using the API or scheduler.
+
 ---
 
 ## Run migrations

@@ -15,18 +15,18 @@ For minikube image builds, load Docker into minikube first — see [project READ
 Built from shared [`Dockerfile.dev`](../Dockerfile.dev) with `CONTAINER=api`; API service in [`compose.yaml`](../../../compose.yaml):
 
 ```bash
+docker compose up -d postgres
+make migrate   # or: docker compose run --rm api python manage.py migrate
 docker compose up api --build
 ```
 
-Defaults from [`default.yaml`](../../config/default.yaml) and compose: Postgres `postgres:5432`, LocalStack `http://localstack:4566`.
+If infra is already running from [kafka-producer](../../../kafka-producer/README.md), use `COMPOSE_PROFILES= docker compose up -d --build --no-deps api`.
+
+Gunicorn uses `--graceful-timeout 30` and `--timeout 60` (compose and cluster [`kube/dev/api.yaml`](../../../kube/dev/api.yaml)).
 
 API: `http://localhost:8000`
 
-Apply migrations before first use (same image):
-
-```bash
-docker compose run --rm api python manage.py migrate
-```
+Defaults from [`default.yaml`](../../config/default.yaml) and compose: Postgres `postgres:5432`, LocalStack `http://localstack:4566`.
 
 ### Option B — Local venv (no Docker)
 
@@ -51,7 +51,7 @@ Omit `opentelemetry-instrument` when OTLP is not configured.
 
 ### Option C — Cluster (`dev` namespace)
 
-Pipeline: `dev-publish-api`, `dev-migrate`, `dev-deploy-api`.
+Pipeline: `dev-publish-api`, `dev-migrate`, `dev-deploy-api`. Uses production [`Dockerfile`](../Dockerfile) with `CONTAINER=api`; OTel pip and OTLP env injected at publish ([`pythonAgent`](../../../../../resources/kafka-worker-api/dev.yaml)). Pod command: `/docker-entrypoint.sh python -m gunicorn ...` (see [`kube/dev/api.yaml`](../../../kube/dev/api.yaml)).
 
 ```bash
 minikube kubectl -- port-forward -n dev deployment/kafka-worker-api-dev 8000:8000
@@ -72,7 +72,7 @@ minikube kubectl -- port-forward -n dev deployment/kafka-worker-api-dev 8000:800
 | `AWS_SECRET_ACCESS_KEY` | yes | `test` | `test` | |
 | `AWS_DEFAULT_REGION` | no | `us-east-1` | `us-east-1` | |
 | `OTEL_SERVICE_NAME` | no | `kafka-worker-api` | from deploy | Compose override |
-| `OTEL_EXPORTER_OTLP_*` | for Grafana | vault `.env` | vault | See [kafka-worker README](../../../README.md#grafana--opentelemetry-compose) |
+| `OTEL_EXPORTER_OTLP_*` | for Grafana | vault `.env` | vault (publish-time) | See [kafka-worker README](../../../README.md#grafana--opentelemetry) |
 | `KAFKA_WORKER_LOG_TRACE_CONTEXT_ENABLED` | no | `true` | `true` | [`telemetry.py`](../../config/telemetry.py) |
 
 LocalStack Pro token: [`resources/vault/_admin/aws/dev/.env`](../../../../../resources/vault/_admin/aws/dev/.env) (compose `localstack` service).

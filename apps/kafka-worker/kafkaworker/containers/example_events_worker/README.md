@@ -17,12 +17,15 @@ For minikube image builds, see [project README](../../../../../README.md#startin
 Built from shared [`Dockerfile.dev`](../Dockerfile.dev) with `CONTAINER=example-topic-consumer`.
 
 ```bash
+docker compose up -d postgres && make migrate
 docker compose up example-topic-consumer --build
 ```
 
 Depends on **postgres**, **kafka**, and **localstack**. Create topic `example-topic` if empty — [Kafka infra README](../../../../../infra/kafka/README.md).
 
-Host port **8005** (container health/metrics placeholder).
+Host port **8005** is reserved in compose/K8s; no HTTP server binds yet.
+
+On SIGTERM/SIGINT, the consumer stops polling cleanly via [`asyncio_signals.py`](../../core/utils/asyncio_signals.py).
 
 ### Option B — Local venv
 
@@ -43,7 +46,7 @@ python manage.py start_example_events_consumer
 
 ### Option C — Cluster (`dev`)
 
-Pipeline: `dev-publish-kafka-worker`, `dev-deploy-kafka-worker`.
+Pipeline: `dev-publish-kafka-worker`, `dev-deploy-kafka-worker`. Production [`Dockerfile`](../Dockerfile) with `CONTAINER=example-topic-consumer`; OTel via publish `pythonAgent`.
 
 ```bash
 minikube kubectl -- logs -n dev -f deployment/kafka-worker-example-topic-consumer-dev
@@ -64,7 +67,7 @@ minikube kubectl -- logs -n dev -f deployment/kafka-worker-example-topic-consume
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | yes | `test` | `test` | |
 | `AWS_DEFAULT_REGION` | no | `us-east-1` | `us-east-1` | |
 | `OTEL_SERVICE_NAME` | no | `kafka-worker-example-topic-consumer` | deploy | |
-| `OTEL_EXPORTER_OTLP_*` | for Grafana | vault | vault | [kafka-worker README](../../../README.md#grafana--opentelemetry-compose) |
+| `OTEL_EXPORTER_OTLP_*` | for Grafana | vault | vault (publish-time) | [kafka-worker README](../../../README.md#grafana--opentelemetry) |
 | `KAFKA_WORKER_LOG_TRACE_CONTEXT_ENABLED` | no | `true` | `true` | Per-message trace via [`trace_context.py`](../../core/logging/trace_context.py) |
 
 Helm overrides: [`kube/dev/example-topic-consumer.yaml`](../../../kube/dev/example-topic-consumer.yaml).

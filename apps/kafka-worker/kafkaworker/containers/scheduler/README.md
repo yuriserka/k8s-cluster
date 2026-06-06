@@ -15,10 +15,13 @@ For minikube image builds, see [project README](../../../../../README.md#startin
 Built from shared [`Dockerfile.dev`](../Dockerfile.dev) with `CONTAINER=scheduler`.
 
 ```bash
+docker compose up -d postgres && make migrate
 docker compose up scheduler --build
 ```
 
 Requires Postgres (and typically API/consumer having written `example_events`). Scheduler command: `python manage.py start_scheduler` (OTEL wrapping via [`docker-entrypoint.sh`](../docker-entrypoint.sh) when vault OTLP is configured).
+
+On SIGTERM, [`start_scheduler.py`](management/commands/start_scheduler.py) stops APScheduler cleanly via [`asyncio_signals.py`](../../core/utils/asyncio_signals.py).
 
 ### Option B — Local venv
 
@@ -34,7 +37,7 @@ python manage.py start_scheduler
 
 ### Option C — Cluster (`dev`)
 
-Pipeline: `dev-publish-scheduler`, `dev-deploy-scheduler`.
+Pipeline: `dev-publish-scheduler`, `dev-deploy-scheduler`. Production image with `CONTAINER=scheduler`; kube command: `/docker-entrypoint.sh python manage.py start_scheduler` ([`kube/dev/scheduler.yaml`](../../../kube/dev/scheduler.yaml)).
 
 ```bash
 minikube kubectl -- logs -n dev -f deployment/kafka-worker-scheduler-dev
@@ -52,7 +55,7 @@ minikube kubectl -- logs -n dev -f deployment/kafka-worker-scheduler-dev
 | `DATABASE_NAME` | `kafka-worker` | `kafka-worker` | |
 | `DATABASE_USER` / `DATABASE_PASSWORD` | `ysdcr` | vault | |
 | `OTEL_SERVICE_NAME` | `kafka-worker-scheduler` | deploy | |
-| `OTEL_EXPORTER_OTLP_*` | vault grafana `.env` | vault | [kafka-worker README](../../../README.md#grafana--opentelemetry-compose) |
+| `OTEL_EXPORTER_OTLP_*` | vault grafana `.env` | vault (publish-time) | [kafka-worker README](../../../README.md#grafana--opentelemetry) |
 | `KAFKA_WORKER_LOG_TRACE_CONTEXT_ENABLED` | `true` | `true` | Log `trace_id` / `span_id` |
 
 No Kafka or AWS env on this service (DB-only jobs).

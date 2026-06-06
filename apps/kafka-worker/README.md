@@ -24,6 +24,7 @@ From this directory:
 
 ```bash
 docker compose up --build
+docker compose up -d postgres && make migrate   # or: docker compose run --rm api python manage.py migrate
 ```
 
 **Second app while infra is already running** (skip infra to avoid container-name conflicts):
@@ -43,6 +44,12 @@ COMPOSE_PROFILES= docker compose up -d --build --no-deps api scheduler example-t
 
 Create Kafka topic `example-topic` — [Kafka infra README](../infra/kafka/README.md).
 
+## Shared infra with kafka-producer
+
+Both apps share network **`k8s-cluster-local`** and fixed container names. See [kafka-producer README](../kafka-producer/README.md#shared-infra-with-kafka-worker).
+
+[`initdb/`](initdb/) creates database `kafka-worker` only on **first** Postgres volume init. If [kafka-producer](../kafka-producer/README.md) started Postgres first on an existing volume, run `make migrate` after ensuring the DB exists, or use [`create_database.py`](../../scripts/create_database.py) in cluster workflows.
+
 **Vault files for compose:**
 
 | File | Used by |
@@ -52,7 +59,9 @@ Create Kafka topic `example-topic` — [Kafka infra README](../infra/kafka/READM
 
 Copy from the matching `.env.example` files before first run.
 
-## Grafana / OpenTelemetry (compose)
+## Grafana / OpenTelemetry
+
+### Compose (local)
 
 Compose loads OTLP settings from `resources/vault/_admin/grafana/dev/.env` (copy from [`.env.example`](../resources/vault/_admin/grafana/dev/.env.example); set `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_HEADERS` from Grafana Cloud → OpenTelemetry → Configure).
 
@@ -62,19 +71,48 @@ docker compose up -d --build
 
 - [`docker-entrypoint.sh`](kafkaworker/containers/docker-entrypoint.sh) wraps commands with `opentelemetry-instrument` when vault sets `OTEL_EXPORTER_OTLP_ENDPOINT` (see [`compose.yaml`](compose.yaml)).
 - Service names: `kafka-worker-api`, `kafka-worker-scheduler`, `kafka-worker-example-topic-consumer`.
-- Image defaults disable export (`OTEL_*_EXPORTER=none`); vault + compose env enable Grafana.
+- `service.namespace=local` in `OTEL_RESOURCE_ATTRIBUTES` ([`Dockerfile.dev`](kafkaworker/containers/Dockerfile.dev)).
+- [`Dockerfile.dev`](kafkaworker/containers/Dockerfile.dev) installs unpinned OTel pip packages; image defaults disable export (`OTEL_*_EXPORTER=none`); vault enables Grafana.
 - Log correlation: [`kafkaworker/config/telemetry.py`](kafkaworker/config/telemetry.py) and [`trace_context.py`](kafkaworker/core/logging/trace_context.py).
 
 To disable telemetry locally, unset vault OTLP values or set `KAFKA_WORKER_LOG_TRACE_CONTEXT_ENABLED=false`.
+
+### Cluster (`dev` namespace)
+
+OpenTelemetry is injected at **publish time** by [`publish_app.py`](../../scripts/publish_app.py) when [`resources/kafka-worker-api/dev.yaml`](../../resources/kafka-worker-api/dev.yaml) (and scheduler/consumer) define:
+
+```yaml
+instrumentation:
+  enabled: true
+  pythonAgent:
+    version: "0.63b1"
+```
+
+Pins `opentelemetry-distro`, runs `opentelemetry-bootstrap`, injects OTLP env from Grafana vault. Kube runs `/docker-entrypoint.sh` before app args ([`kube/dev/api.yaml`](kube/dev/api.yaml)). `service.namespace=dev` in cluster.
+
+### Dockerfile.dev vs Dockerfile (pipeline)
+
+| | [`Dockerfile.dev`](kafkaworker/containers/Dockerfile.dev) | [`Dockerfile`](kafkaworker/containers/Dockerfile) |
+|--|--|--|
+| Used by | Compose local builds | Pipeline / cluster publish |
+| OTel pip | Unpinned in image | Injected at publish via `pythonAgent` |
+| Entrypoint | `docker-entrypoint.sh` | `docker-entrypoint.sh` (base); OTel pip added by publish |
+
+## Graceful shutdown
+
+- **API:** Gunicorn `--graceful-timeout 30` / `--timeout 60` in compose and [`kube/dev/api.yaml`](kube/dev/api.yaml).
+- **Scheduler / consumer:** SIGTERM handled via [`asyncio_signals.py`](kafkaworker/core/utils/asyncio_signals.py) — stop polling/scheduling cleanly.
+- **Kubernetes:** `terminationGracePeriodSeconds: 60` in [`envs/dev/values.yaml`](../../envs/dev/values.yaml).
 
 ## Full pipeline (cluster)
 
 ```bash
 cd scripts
-python pipeline_parser.py kafka-worker
+make deploy-app kafka-worker
+# or: python pipeline_parser.py kafka-worker
 ```
 
-See [scripts/README.md](../scripts/README.md).
+See [scripts/README.md](../../scripts/README.md).
 
 ## Repo-wide tasks
 
@@ -88,6 +126,8 @@ From `apps/kafka-worker/`:
 | Venv | `python3 -m venv .venv && . .venv/bin/activate` or `make venv` |
 | Install | `pip install -r requirements.txt -r requirements_dev.txt` or `make install` |
 | Lint + style (black + flake8) | `python code_checks.py` or `make code-checks` |
+| Format (black) | `make format` |
+| Full pipeline (cluster) | `make pipeline` |
 | Test + coverage | `python run_tests.py` or `make test` |
 | Docker build (api) | `docker build -t kafka-worker-api-local:latest -f kafkaworker/containers/Dockerfile.dev --build-arg CONTAINER=api .` |
 | Docker build (scheduler) | `docker build -t kafka-worker-scheduler-local:latest -f kafkaworker/containers/Dockerfile.dev --build-arg CONTAINER=scheduler .` |

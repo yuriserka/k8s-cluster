@@ -20,10 +20,17 @@ Requirements: Python 3.8+, [Docker](https://docs.docker.com/), [Helm](https://he
 From `scripts/`:
 
 ```bash
+make help                              # list targets and available app repos
+make install                           # pip install requirements + dev deps
 make lint                              # black --check + flake8
 make format                            # apply black
-make deploy-app kafka-worker           # full pipeline via pipeline_parser.py
+make check                             # alias for lint
+make print-repositories                # list deployable repos (excludes infra)
+make deploy-app kafka-worker           # install-quiet + full pipeline_parser.py
+make deploy-app kafka-producer
 ```
+
+`deploy-app` runs `install-quiet` then `pipeline_parser.py <repo>`. Available repos match folders under `apps/` except `infra`.
 
 **CLI conventions:** Every script uses [Typer](https://typer.tiangolo.com/). Options use descriptive long names (`--namespace`, `--repository`, …). Run `python <script>.py --help` for the full list.
 
@@ -56,19 +63,17 @@ On success or failure, any containers started from the app's `.pipeline` `servic
 
 If you see a Docker name conflict from an interrupted run, remove the container manually or re-run the pipeline (it removes leftover containers before `docker run`).
 
-### Cluster database (before migrations against minikube Postgres)
+### Cluster database (`create_database.py`)
 
-Port-forward Postgres in another terminal:
+[`create_database.py`](create_database.py) runs **`kubectl exec` into `postgresql-0`** — no port-forward required. The full pipeline calls it automatically inside `database_migration` steps before migrate jobs.
 
-```bash
-kubectl port-forward -n dev service/postgresql 5432:5432
-```
-
-Then create the database and apply permissions (safe to re-run):
+Run manually only when debugging or running a partial workflow:
 
 ```bash
 python create_database.py --namespace dev --repository kafka-worker
 ```
+
+Creates the database and grants the app user ownership of the DB and `public` schema (required on PostgreSQL 15+). Safe to re-run.
 
 Credentials are read from:
 
@@ -76,6 +81,12 @@ Credentials are read from:
 - App: `resources/vault/<repository>/database/<namespace>/.env`
 
 (paths under `REPO_ROOT`)
+
+**Optional port-forward** — only if you want host-side `psql` or a GUI against cluster Postgres:
+
+```bash
+kubectl port-forward -n dev service/postgresql 5432:5432
+```
 
 ### Publish and install (usually via pipeline)
 
@@ -98,7 +109,35 @@ python publish_app.py --repository kafka-worker-api --dockerfile Dockerfile \
 | `--use-minikube-docker` | Build with `docker build` against minikube's Docker daemon (`eval "$(minikube docker-env)"`) so images are available with `imagePullPolicy: Never` |
 | `--build-args` | Optional JSON object of Docker build-args (e.g. `'{"CONTAINER":"api"}'`) |
 
-Optional OpenTelemetry instrumentation is applied when enabled in `../resources/<repo>/<namespace>.yaml`.
+### OpenTelemetry instrumentation (`publish_app.py`)
+
+When `instrumentation` is present in `../resources/<application>/<namespace>.yaml`, [`publish_app.py`](publish_app.py) writes a temp Dockerfile that adds OTel packages and env vars before `docker build`.
+
+Grafana OTLP credentials come from `resources/vault/_admin/grafana/<namespace>/.env`.
+
+**Java** (`kafka-producer-api`, `kafka-producer-scheduler`):
+
+```yaml
+instrumentation:
+  enabled: true
+  javaAgent:
+    version: "2.15.0"
+```
+
+Downloads `opentelemetry-javaagent.jar`, injects OTLP `ENV` lines, and prepends `-javaagent` to the image `CMD`.
+
+**Python** (`kafka-worker-*`):
+
+```yaml
+instrumentation:
+  enabled: true
+  pythonAgent:
+    version: "0.63b1"
+```
+
+Pins `opentelemetry-distro=={version}`, installs `opentelemetry-exporter-otlp`, runs `opentelemetry-bootstrap --action=install`, and injects OTLP `ENV` before `ENTRYPOINT`. Runtime wrapping uses `/docker-entrypoint.sh` → `opentelemetry-instrument` when `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
+
+When `enabled: false`, packages may still be installed but OTLP endpoint env is omitted (entrypoint no-ops without endpoint).
 
 **Install** — idempotent Helm deploy (`helm upgrade --install`):
 
@@ -213,7 +252,7 @@ dev-migrate:
     - python manage.py migrate
 ```
 
-**kafka-producer** — dedicated Gradle/Flyway image:
+**kafka-producer** — Flyway CLI image (see [migrate README](../apps/kafka-producer/app/containers/migrate/README.md)):
 
 ```yaml
 dev-publish-migrate:
@@ -227,7 +266,7 @@ dev-migrate:
   repository: kafka-producer
   image_repo: kafka-producer-migrate
   cmd:
-    - ./gradlew :app:core:flywayMigrate -Dflyway.configFiles=flyway.conf
+    - /docker-entrypoint.sh migrate
 ```
 
 Image reference: `{image_repo}-{env}:{env}` (e.g. `kafka-worker-api-dev:dev`). Failed migrate aborts the pipeline before deploy.
@@ -282,7 +321,8 @@ k8s-cluster/
 
 ## Troubleshooting
 
-- **Docker container name already in use** — `docker rm -f <repo>-<service_name>` or re-run `pipeline_parser.py`.
+- **Compose container name already in use** (`k8s-cluster-kafka`, etc.) — infra is already running from another app; use `COMPOSE_PROFILES= docker compose up -d --build --no-deps <services>` (see app READMEs).
+- **Docker container name already in use** (pipeline) — `docker rm -f <repo>-<service_name>` or re-run `pipeline_parser.py`.
 - **`permission denied for schema public`** (Django migrations on cluster) — run `create_database.py` for that repo/namespace, then migrate again.
 - **Pipeline fails on `rsync`** — run from `scripts/` (or any cwd; paths use `REPO_ROOT`).
 - **Publish: `lstat /home/...: no such file or directory`** — WSL path passed to Docker Desktop; re-run publish after updating `publish_app.py` (builds via `cd` + relative context). Ensure minikube is running.

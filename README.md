@@ -31,33 +31,58 @@ helm install kafka-ui kafka-ui/kafka-ui -n dev -f apps/infra/kafka-ui/values.yam
 helm install postgresql bitnami/postgresql -n dev -f apps/infra/postgresql/values.yaml
 ```
 
-simulate a pipeline with the following commands
+## Local dev with Compose
+
+Run apps on Docker Compose without minikube — see:
+
+- [kafka-producer README](apps/kafka-producer/README.md)
+- [kafka-worker README](apps/kafka-worker/README.md)
+
+Both use network **`k8s-cluster-local`** and shared infra containers (`k8s-cluster-postgres`, `k8s-cluster-kafka`, `k8s-cluster-localstack`). Start infra once with the `infra` profile (via each app's `.env`), then start the second app with:
 
 ```bash
-# if your pipeline needs to run a migration, then in a terminal with minikube env vars
-kubectl port-forward -n dev service/postgresql 5432:5432
+COMPOSE_PROFILES= docker compose up -d --build --no-deps <services>
+```
 
-# from the scripts/ directory (see scripts/README.md):
+## Cluster deploy (pipeline)
+
+From `scripts/` (see [scripts/README.md](scripts/README.md)):
+
+```bash
 cd scripts
-# create_database.py creates the DB and grants the app user owner + public schema rights (required on PG15+ for migrations)
-python create_database.py --namespace dev --repository <app_name>
+make deploy-app kafka-producer   # or kafka-worker
+```
+
+This runs the full `.pipeline`: lint, test, publish images, in-cluster migrate (`create_database.py` + migration job), and Helm deploy. **No port-forward or manual `create_database.py` is required** when using the full pipeline.
+
+Manual equivalent:
+
+```bash
+cd scripts
 python pipeline_parser.py <app_name>
 ```
 
-if the app is an API run the following to test:
+To create a database manually (e.g. before a partial run), `create_database.py` execs into `postgresql-0` in-cluster — no port-forward needed:
+
+```bash
+python create_database.py --namespace dev --repository <app_name>
+```
+
+## Testing deployed apps
+
+Port-forward is only needed to reach cluster services from your host (API curls, Kafka UI):
 
 ```bash
 kubectl port-forward -n dev deployment/<app_name>-dev <host_port>:<app_exposed_port>
-
 ```
 
-if the app is a Kafka consumer, consider to open `kafka-ui`
+For Kafka UI:
 
 ```bash
 kubectl port-forward -n dev deployment/kafka-ui <host_port>:8080
 ```
 
-to stop a specific app execute:
+## Stopping apps
 
 ```bash
 helm uninstall <app_name> -n dev

@@ -15,8 +15,12 @@ For minikube image builds, load Docker into minikube first — see [project READ
 Starts dependencies and builds via shared [`Dockerfile.dev`](../Dockerfile.dev) with `CONTAINER=api` (bootJar only — no lint/tests in the image build). Run `./gradlew :app:containers:api:codeChecks` and `./gradlew test` on the host when you want CI gates — see [kafka-producer README](../../../README.md#repo-wide-gradle-tasks).
 
 ```bash
+docker compose up -d postgres
+make migrate
 docker compose up api --build
 ```
+
+If infra is already running from [kafka-worker](../../../kafka-worker/README.md), use `COMPOSE_PROFILES= docker compose up -d --build --no-deps api` instead.
 
 Uses profile `local` (see [`application-local.yaml`](../../core/src/main/resources/application-local.yaml)): Postgres `postgres:5432`, Kafka `kafka:9092`.
 
@@ -24,21 +28,25 @@ API: `http://localhost:8080`
 
 ### Option B — Production-style image (pre-built JAR)
 
+Production [`Dockerfile`](../Dockerfile) has **no** `docker-entrypoint.sh` or javaagent unless the image was built via [`publish_app.py`](../../../../../scripts/publish_app.py) with `javaAgent` in resources. For a raw local build:
+
 ```bash
 ./gradlew :app:containers:api:bootJar
 
 docker build -t kafka-producer-api:local -f app/containers/Dockerfile --build-arg CONTAINER=api .
 docker run --rm -p 8080:8080 \
   -e SPRING_PROFILE=local \
-  --network kafka-producer_default \
+  --network k8s-cluster-local \
   kafka-producer-api:local
 ```
 
-Use `--network` from the compose network if Postgres/Kafka run in compose; otherwise set env vars for profile `dev` (table below).
+Connect to compose infra on network **`k8s-cluster-local`**; otherwise set env vars for profile `dev` (table below).
 
 ### Option C — Cluster (`dev` namespace)
 
-Built and deployed by the pipeline (`dev-publish-api`, `dev-deploy-api`). Port-forward:
+Built and deployed by the pipeline (`dev-publish-api`, `dev-deploy-api`). OTel javaagent and OTLP env are baked at publish from [`resources/kafka-producer-api/dev.yaml`](../../../../../resources/kafka-producer-api/dev.yaml). Graceful shutdown: Spring lifecycle + 60s pod termination grace.
+
+Port-forward:
 
 ```bash
 minikube kubectl -- port-forward -n dev deployment/kafka-producer-api-dev 8085:8080
@@ -60,7 +68,7 @@ minikube kubectl -- port-forward -n dev deployment/kafka-producer-api-dev 8085:8
 | `OTEL_JAVAAGENT_ENABLED` | no | `true` (compose) / `false` (image default) | [`docker-entrypoint.sh`](../docker-entrypoint.sh): `false` skips `-javaagent` |
 | `OTEL_SERVICE_NAME` | no | `kafka-producer-api` | Set in compose |
 | `OTEL_RESOURCE_ATTRIBUTES` | no | `service.name=kafka-producer-api,...` | [`Dockerfile.dev`](../Dockerfile.dev) with `CONTAINER=api`; aligns with `OTEL_SERVICE_NAME` |
-| `OTEL_EXPORTER_OTLP_*` | for Grafana | from vault `.env` | See [kafka-producer README](../../../README.md#grafana--opentelemetry-compose) |
+| `OTEL_EXPORTER_OTLP_*` | for Grafana | from vault `.env` | See [kafka-producer README](../../../README.md#grafana--opentelemetry) |
 
 Helm overrides: [`kube/dev/api.yaml`](../../../kube/dev/api.yaml).
 

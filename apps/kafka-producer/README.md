@@ -22,7 +22,10 @@ From this directory, with [minikube docker-env](../../README.md#startingstoping)
 
 ```bash
 docker compose up --build
+docker compose up -d postgres && make migrate   # required before API/scheduler use
 ```
+
+**Note:** `docker compose up` does **not** run Flyway automatically — run `make migrate` after Postgres is up.
 
 **Second app while infra is already running** (skip infra to avoid container-name conflicts):
 
@@ -38,7 +41,15 @@ COMPOSE_PROFILES= docker compose up -d --build --no-deps api scheduler
 
 Create Kafka topic `example-topic` — [Kafka infra README](../infra/kafka/README.md).
 
-## Grafana / OpenTelemetry (compose)
+## Shared infra with kafka-worker
+
+Both apps share network **`k8s-cluster-local`** and fixed container names (`k8s-cluster-postgres`, `k8s-cluster-kafka`, `k8s-cluster-localstack`). Start infra from either app's compose (`.env` enables the `infra` profile).
+
+If [kafka-worker](../kafka-worker/README.md) started Postgres first, database `kafka-worker` is created via [`initdb/`](../kafka-worker/initdb/) only on **first** volume init. If the volume already existed, create the worker DB manually or re-run worker migrations.
+
+## Grafana / OpenTelemetry
+
+### Compose (local)
 
 Compose loads OTLP credentials and exporter settings from:
 
@@ -52,17 +63,37 @@ docker compose up -d --build
 
 - `OTEL_JAVAAGENT_ENABLED=true` in compose turns on the Java agent ([`docker-entrypoint.sh`](app/containers/docker-entrypoint.sh)).
 - Service names in Grafana: `kafka-producer-api`, `kafka-producer-scheduler`.
+- `service.namespace=local` in `OTEL_RESOURCE_ATTRIBUTES` ([`Dockerfile.dev`](app/containers/Dockerfile.dev)).
 - Metrics export is throttled via `OTEL_METRIC_EXPORT_INTERVAL` in the vault file (default 5 minutes).
 
-To run locally **without** Grafana, set `OTEL_JAVAAGENT_ENABLED: "false"` on api/scheduler in [`compose.yaml`](compose.yaml) or omit/empty the vault `.env` exporter vars.
+To run locally **without** Grafana, set `OTEL_JAVAAGENT_ENABLED: "false"` on api/scheduler in [`compose.yaml`](compose.yaml).
 
 Verify: call the API, then check traces in Grafana Cloud for those service names.
+
+### Cluster (`dev` namespace)
+
+OpenTelemetry is injected at **publish time** by [`publish_app.py`](../../scripts/publish_app.py) when [`resources/kafka-producer-api/dev.yaml`](../../resources/kafka-producer-api/dev.yaml) (and scheduler) define:
+
+```yaml
+instrumentation:
+  enabled: true
+  javaAgent:
+    version: "2.15.0"
+```
+
+OTLP endpoint/headers come from `resources/vault/_admin/grafana/dev/.env`. `service.namespace=dev` is set in the instrumented Dockerfile. Not configured in `kube/dev/*.yaml` params files.
+
+## Graceful shutdown
+
+- **Spring:** `server.shutdown: graceful` with 30s phase timeout in [`application.yaml`](app/core/src/main/resources/application.yaml).
+- **Kubernetes:** `terminationGracePeriodSeconds: 60` in the shared Helm chart ([`envs/dev/values.yaml`](../../envs/dev/values.yaml)).
 
 ## Full pipeline (cluster)
 
 ```bash
 cd scripts
-python pipeline_parser.py kafka-producer
+make deploy-app kafka-producer
+# or: python pipeline_parser.py kafka-producer
 ```
 
 See [scripts/README.md](../../scripts/README.md).
