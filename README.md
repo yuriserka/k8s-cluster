@@ -87,18 +87,26 @@ kubectl port-forward -n dev deployment/kafka-ui <host_port>:8080
 
 ## Stopping apps
 
-```bash
-helm uninstall <app_name> -n dev
-```
-
-to uninstall every Helm release that app's pipeline deploys (all `kind: install` steps for that repo/namespace):
+Drop app Helm releases (all `kind: install` steps for that repo/namespace):
 
 ```bash
 cd scripts
-python remove_all_pods.py --namespace dev --repository <app_name>
+make drop-app kafka-worker   # or kafka-producer
 ```
 
-and to stop minikube and all services just run:
+Or: `python drop_app.py --repository <app_name> --namespace dev`
+
+Drop shared infra (after apps):
+
+```bash
+cd scripts
+make drop-infra                        # cluster Helm releases
+make drop-infra MODE=compose           # compose down (keep volumes)
+make drop-infra MODE=compose VOLUMES=1 # compose down -v (all services)
+make drop-infra SERVICES=postgresql    # drop selected infra only
+```
+
+To stop minikube entirely:
 
 ```bash
 minikube stop

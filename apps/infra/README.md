@@ -46,4 +46,23 @@ docker compose up -d --build --no-deps api scheduler
 | LocalStack auth token | `resources/vault/_admin/aws/dev/.env` |
 | Postgres (cluster apps) | `resources/vault/_admin/database/dev/.env` + per-app vault |
 
-See [scripts/install_infra.py](../../scripts/install_infra.py) and [scripts/README.md](../../scripts/README.md).
+See [scripts/install_infra.py](../../scripts/install_infra.py), [scripts/drop_infra.py](../../scripts/drop_infra.py), and [scripts/README.md](../../scripts/README.md).
+
+## Teardown
+
+**Cluster:**
+
+```bash
+cd scripts
+make drop-infra
+make drop-infra SERVICES=kafka-ui      # selected release(s) only
+```
+
+**Compose:**
+
+```bash
+cd scripts
+make drop-infra MODE=compose
+make drop-infra MODE=compose SERVICES=postgresql
+# optional: VOLUMES=1 to remove named volumes for selected service(s)
+```

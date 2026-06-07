@@ -1,4 +1,5 @@
 import os
+import shlex
 
 import typer
 import yaml
@@ -32,25 +33,30 @@ def get_helm_releases(repository: str, namespace: str) -> list[str]:
     return releases
 
 
-def remove_all_pods(namespace: str, repository: str) -> int:
+def drop_app(namespace: str, repository: str) -> int:
     releases = get_helm_releases(repository, namespace)
     if not releases:
-        print(f'No install steps found for repository "{repository}" ' f'in namespace "{namespace}".')
+        print(f'No install steps found for repository "{repository}" in namespace "{namespace}".')
         return 0
 
     exit_code = 0
     for release in releases:
-        exit_code += execute_cli_command(f"helm uninstall {release} -n {namespace}")
+        print(f'Uninstalling Helm release "{release}" from namespace "{namespace}"...')
+        exit_code += execute_cli_command(
+            f"helm uninstall {shlex.quote(release)} -n {shlex.quote(namespace)} --ignore-not-found"
+        )
 
+    if exit_code == 0:
+        print(f'App releases for "{repository}" removed from namespace "{namespace}".')
     return 0 if exit_code == 0 else 1
 
 
 @app.command()
 def cli(
-    namespace: str = typer.Option(..., help="Kubernetes namespace (e.g. dev)"),
     repository: str = typer.Option(..., help="App folder under apps/"),
+    namespace: str = typer.Option("dev", help="Kubernetes namespace (e.g. dev)"),
 ) -> None:
-    exit_code = remove_all_pods(namespace, repository)
+    exit_code = drop_app(namespace, repository)
     exit_on_failure(exit_code, f"Failed to uninstall releases for {repository}")
 
 

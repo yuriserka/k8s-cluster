@@ -31,6 +31,12 @@ make deploy-app kafka-producer
 make setup-infra                       # cluster infra (PG + Kafka + LocalStack)
 make setup-infra MODE=compose          # Docker Compose infra from apps/infra/
 make setup-infra WITH_KAFKA_UI=1       # also install Kafka UI (cluster)
+make drop-app kafka-worker             # uninstall app Helm releases
+make drop-infra                        # uninstall infra Helm releases (cluster)
+make drop-infra MODE=compose           # docker compose down (keep volumes)
+make drop-infra MODE=compose VOLUMES=1 # docker compose down -v
+make drop-infra SERVICES=postgresql    # drop selected infra only
+make drop-infra SERVICES="kafka localstack"
 ```
 
 `deploy-app` runs `install-quiet` then `pipeline_parser.py <repo>`. Available repos match folders under `apps/` except `infra`.
@@ -50,11 +56,12 @@ Or manually: `python install_infra.py --help`.
 | Script | Purpose |
 |--------|---------|
 | [`install_infra.py`](install_infra.py) | Installs shared infra (cluster: Helm; compose: `apps/infra/compose.yaml`) |
+| [`drop_infra.py`](drop_infra.py) | Uninstalls shared infra (cluster: Helm; compose: `docker compose down`) |
+| [`drop_app.py`](drop_app.py) | Uninstalls app Helm releases from an app's `.pipeline` install steps |
 | [`pipeline_parser.py`](pipeline_parser.py) | Runs an app's full `.pipeline` file (services + steps) |
 | [`create_database.py`](create_database.py) | Creates a PostgreSQL database in the cluster and grants the app user ownership of the DB and `public` schema (PG15+) |
 | [`publish_app.py`](publish_app.py) | Builds a Docker image for one application component |
 | [`install_app.py`](install_app.py) | Renders Helm values and runs `helm upgrade --install`; stamps pods with pipeline metadata |
-| [`remove_all_pods.py`](remove_all_pods.py) | Uninstalls every Helm release declared by `kind: install` steps in an app's `.pipeline` |
 | [`repo_paths.py`](repo_paths.py) | Shared `REPO_ROOT`, `SCRIPT_DIR`, and `resolve_path()` used by the scripts above |
 | [`infra_common.py`](infra_common.py) | Shared Kubernetes pod wait helpers (state machine polling) |
 
@@ -96,6 +103,45 @@ make setup-infra                                     # Makefile wrapper
 | `--with-kafka-ui` | off | Install Kafka UI Helm release |
 
 Cluster mode requires minikube + helm. LocalStack auth token is read from `resources/vault/_admin/aws/<namespace>/.env`. App deploy (`make deploy-app`) expects cluster infra to be running first.
+
+## `drop_infra.py`
+
+Removes infra installed by [`install_infra.py`](install_infra.py).
+
+```bash
+python drop_infra.py                                 # cluster (default namespace dev)
+python drop_infra.py --service postgresql            # one service
+python drop_infra.py -s kafka -s localstack          # multiple services
+python drop_infra.py --mode compose --service kafka
+python drop_infra.py --mode compose --volumes -s postgresql
+make drop-infra
+make drop-infra SERVICES=postgresql
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--mode` | `cluster` | `cluster` or `compose` |
+| `--namespace` | `dev` | Kubernetes namespace (cluster mode) |
+| `--volumes` | off | Compose mode: remove volumes for selected service(s) |
+| `--service` / `-s` | all | `postgresql`, `kafka`, `localstack`, `kafka-ui` (cluster only for kafka-ui) |
+
+Cluster mode runs `helm uninstall` for each selected release (`--ignore-not-found`). Default order when dropping all: `kafka-ui`, `localstack`, `kafka`, `postgresql`. Drop apps first (`make drop-app`) before infra.
+
+## `drop_app.py`
+
+Uninstalls every Helm release from `kind: install` steps in `apps/<repo>/.pipeline` for the given namespace.
+
+```bash
+python drop_app.py --repository kafka-worker --namespace dev
+make drop-app kafka-worker
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--repository` | required | App folder under `apps/` |
+| `--namespace` | `dev` | Kubernetes namespace |
+
+For `kafka-worker` with `env: dev`, this uninstalls `kafka-worker-api`, `kafka-worker-example-topic-consumer`, and `kafka-worker-scheduler`. `kafka-producer` uninstalls `kafka-producer-api` and `kafka-producer-scheduler`. Use this to reset cluster state after a pipeline deploy without uninstalling shared infra; run `make drop-infra` after dropping apps to remove infra too.
 
 ## Typical workflow
 
@@ -339,23 +385,6 @@ Executes `psql` inside the `postgresql-0` pod via `minikube kubectl -- exec`:
 3. `GRANT` / `ALTER SCHEMA public` connected to the app database
 
 See also [PostgreSQL infra notes](../apps/infra/postgresql/README.md).
-
-## `remove_all_pods.py`
-
-Tears down everything an app's pipeline deploys for a given namespace. Despite the filename, it does **not** delete pods directly — it runs `helm uninstall` for each release listed in `kind: install` steps of `apps/<repository>/.pipeline` where `env` matches `--namespace` and `repo` matches `--repository`.
-
-```bash
-python remove_all_pods.py --namespace dev --repository kafka-worker
-```
-
-| Option | Description |
-|--------|-------------|
-| `--namespace` | Kubernetes namespace (must match the install step `env`, e.g. `dev`) |
-| `--repository` | App folder name under `apps/` (must match the install step `repo`, e.g. `kafka-worker`) |
-
-For `kafka-worker` with `env: dev`, this uninstalls `kafka-worker-api`, `kafka-worker-example-topic-consumer`, and `kafka-worker-scheduler` (the `application` values from each matching install step). `kafka-producer` uninstalls `kafka-producer-api` and `kafka-producer-scheduler`.
-
-Use this to reset cluster state after a pipeline deploy without uninstalling shared infra (Kafka, PostgreSQL, etc.). To remove a single release instead, use `helm uninstall <application> -n <namespace>`.
 
 ## Layout assumptions
 
