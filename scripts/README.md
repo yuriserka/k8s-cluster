@@ -260,6 +260,10 @@ python -m k8s_cluster app install --repository kafka-worker --application kafka-
 
 Each install writes pod annotations `pipeline_id` and `pipeline_deployed_at` so repeated deploys with the same image tag still roll out new pods. When run via `pipeline run`, all `install` steps in one pipeline run share the same `pipeline_id` and timestamp.
 
+### Pipeline log output
+
+`pipeline run` prints a header/footer around each step (`STEP i/N`, kind, key fields, duration, exit code) so output from one step is visually separated from the next. Optional `services:` blocks get a similar `SERVICE i/N` header.
+
 ## Pipeline step kinds
 
 Defined in each app's `apps/<repo>/.pipeline`:

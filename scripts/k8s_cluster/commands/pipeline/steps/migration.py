@@ -5,6 +5,7 @@ from datetime import datetime
 
 from k8s_cluster.commands.database.service import create_database
 from k8s_cluster.commands.database.types import CreateDatabaseRequest
+from k8s_cluster.commands.pipeline.log import log_step_detail
 from k8s_cluster.commands.pipeline.types import DatabaseMigrationStepArgs
 from k8s_cluster.paths import REPO_ROOT
 from k8s_cluster.services.kubectl import delete_pod, get_pod, get_pod_container_exit_code
@@ -108,38 +109,43 @@ def run_in_cluster_migration_command(
 
 
 def handle_database_migration_step(args: DatabaseMigrationStepArgs, temp_folder_path: str) -> int:
-    print("Migrating database in cluster with args:", args)
+    image = f"{args.image_repo}-{args.env}:{args.env}"
+    log_step_detail(f"Database migration for {args.repository} in namespace {args.env}")
+    log_step_detail(f"Waiting for {DEFAULT_POSTGRES_SERVICE}-0 in namespace {args.env}")
 
     exit_code = wait_for_postgresql_ready(args.env)
     if exit_code != 0:
-        print(
-            f'PostgreSQL is not ready in namespace "{args.env}" '
-            f"(waited {READY_TIMEOUT_SECONDS}s for pod/{DEFAULT_POSTGRES_SERVICE}-0)."
+        log_step_detail(
+            f"PostgreSQL not ready in namespace {args.env} "
+            f"(waited {READY_TIMEOUT_SECONDS}s for pod/{DEFAULT_POSTGRES_SERVICE}-0)"
         )
         return exit_code
 
+    log_step_detail(f"Ensuring database exists for {args.repository}")
     try:
         exit_code = create_database(CreateDatabaseRequest(repository=args.repository, namespace=args.env))
     except (FileNotFoundError, ValueError) as error:
-        print(error)
+        log_step_detail(str(error))
         return 1
     if exit_code != 0:
         return exit_code
 
     database_env = load_cluster_database_env(args.repository, args.env)
-    image = f"{args.image_repo}-{args.env}:{args.env}"
     run_id = datetime.now().strftime("%H%M%S%f")
 
-    for index, command in enumerate(args.cmd):
+    for index, command in enumerate(args.cmd, start=1):
+        log_step_detail(f"Running migrate command {index}/{len(args.cmd)}: {command}")
         command_argv = shlex.split(command)
         exit_code = run_in_cluster_migration_command(
             args.env,
             image,
             database_env,
             command_argv,
-            f"{run_id}-{index}",
+            f"{run_id}-{index - 1}",
         )
         if exit_code != 0:
+            log_step_detail(f"Migrate command {index} failed with exit code {exit_code}")
             return exit_code
 
+    log_step_detail(f"All {len(args.cmd)} migrate command(s) completed successfully")
     return 0

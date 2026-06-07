@@ -2,8 +2,9 @@ import os
 import shlex
 import time
 
-from k8s_cluster.commands.pipeline.types import ServiceArgs
+from k8s_cluster.commands.pipeline.log import log_step_detail
 from k8s_cluster.commands.pipeline.steps.shell import write_secrets_to_file
+from k8s_cluster.commands.pipeline.types import ServiceArgs
 from k8s_cluster.utils.shell import execute_cli_command
 
 
@@ -14,22 +15,23 @@ def wait_for_docker_postgres(container_id: str, pg_user: str, timeout_seconds: i
         )
         if exit_code == 0:
             if second > 0:
-                print(f"PostgreSQL ready after {second + 1}s")
+                log_step_detail(f"PostgreSQL ready after {second + 1}s")
             return 0
         time.sleep(1)
 
-    print(f'PostgreSQL in container "{container_id}" did not become ready ' f"within {timeout_seconds}s.")
+    log_step_detail(f'PostgreSQL in container "{container_id}" did not become ready within {timeout_seconds}s')
     return 1
 
 
 def handle_service(service_name: str, repository: str, args: ServiceArgs, temp_folder_path: str):
-    print(f"Starting service for {repository} with args: {args}")
     container_id = f"{repository}-{service_name}"
+    log_step_detail(f"Starting container {container_id} (image {args.image}, ports {args.image_port_map})")
     image_env_vars = " ".join(
         [f"-e {key}={value}" for key, value in args.image_env_vars.items()],
     )
     credentials_path = os.path.join(temp_folder_path, args.output_file.lstrip("./"))
     write_secrets_to_file(args.env_vars, credentials_path)
+    log_step_detail(f"Writing service env to {credentials_path}")
 
     execute_cli_command(f"docker rm -f {container_id} >/dev/null 2>&1")
 

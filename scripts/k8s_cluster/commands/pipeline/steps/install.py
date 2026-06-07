@@ -1,5 +1,6 @@
 from k8s_cluster.commands.app.install_service import install_app
 from k8s_cluster.commands.app.types import InstallAppRequest
+from k8s_cluster.commands.pipeline.log import log_step_detail
 from k8s_cluster.commands.pipeline.types import InstallStepArgs
 from k8s_cluster.services.pod_wait import READY_TIMEOUT_SECONDS, wait_for_deployment_rollout
 
@@ -10,7 +11,8 @@ def handle_install_step(
     pipeline_id: str,
     pipeline_started_at: str,
 ) -> int:
-    print("Installing app with args:", args)
+    log_step_detail(f"Helm upgrade --install {args.application} (namespace {args.env}, tag {args.env})")
+    log_step_detail(f"Values from {args.params_file}, pipeline_id {pipeline_id}")
     exit_code = install_app(
         InstallAppRequest(
             application=args.application,
@@ -26,6 +28,7 @@ def handle_install_step(
     if exit_code != 0:
         return exit_code
 
+    log_step_detail(f"Waiting for rollout of {args.application} with pipeline_id {pipeline_id}")
     return wait_for_deployment_rollout(
         args.application,
         args.env,

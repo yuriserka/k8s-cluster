@@ -1,5 +1,6 @@
 import os
 
+from k8s_cluster.commands.pipeline.log import log_step_detail
 from k8s_cluster.utils.docker import docker_desktop_env_prefix, is_minikube_docker_env
 from k8s_cluster.utils.shell import execute_cli_command
 
@@ -15,7 +16,7 @@ def write_secrets_to_file(secrets: dict, output_file: str):
 
 def prepare_shell_command(cmd: str, step_name: str) -> str:
     if step_name == "test" and is_minikube_docker_env():
-        print("Using Docker Desktop for test step (minikube docker-env detected)")
+        log_step_detail("Using Docker Desktop for test step (minikube docker-env detected)")
         return docker_desktop_env_prefix() + cmd
     return cmd
 
