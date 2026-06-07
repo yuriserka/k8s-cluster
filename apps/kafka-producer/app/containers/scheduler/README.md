@@ -17,11 +17,13 @@ For minikube image builds, see [project README](../../../../../README.md#startin
 Build via shared [`Dockerfile.dev`](../Dockerfile.dev) with `CONTAINER=scheduler` (bootJar only — no lint/tests in the image build). Run `./gradlew :app:containers:scheduler:codeChecks` and `./gradlew test` on the host when you want CI gates — see [kafka-producer README](../../../README.md#repo-wide-gradle-tasks).
 
 ```bash
-docker compose up -d postgres && make migrate
+cd ../../../../infra && docker compose up -d
+cd ../kafka-producer
+make migrate
 docker compose up scheduler --build
 ```
 
-If infra is already running, use `COMPOSE_PROFILES= docker compose up -d --build --no-deps scheduler`.
+If infra is already running, use `docker compose up -d --build --no-deps scheduler`.
 
 Profile `local` — same Postgres/Kafka as the API. Actuator: `http://localhost:8081/actuator/health` (host port **8081** → container 8080).
 

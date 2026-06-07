@@ -23,25 +23,28 @@ eval (minikube -p minikube docker-env)
 create the infra you need with
 
 ```bash
-helm repo add bitnami https://charts.bitnami.com/bitnami
-minikube kubectl -- create namespace dev
-
-helm install kafka bitnami/kafka -n dev -f apps/infra/kafka/values.yaml
-helm install kafka-ui kafka-ui/kafka-ui -n dev -f apps/infra/kafka-ui/values.yaml
-helm install postgresql bitnami/postgresql -n dev -f apps/infra/postgresql/values.yaml
+cd scripts
+make setup-infra
 ```
+
+Optional: `make setup-infra WITH_KAFKA_UI=1` for Kafka UI.
 
 ## Local dev with Compose
 
 Run apps on Docker Compose without minikube — see:
 
+- [infra README](apps/infra/README.md) — start shared Postgres, Kafka, LocalStack once
 - [kafka-producer README](apps/kafka-producer/README.md)
 - [kafka-worker README](apps/kafka-worker/README.md)
 
-Both use network **`k8s-cluster-local`** and shared infra containers (`k8s-cluster-postgres`, `k8s-cluster-kafka`, `k8s-cluster-localstack`). Start infra once with the `infra` profile (via each app's `.env`), then start the second app with:
+Both apps use network **`k8s-cluster-local`** and shared infra containers (`k8s-cluster-postgres`, `k8s-cluster-kafka`, `k8s-cluster-localstack`). Start infra from [`apps/infra/`](apps/infra/), then start app services:
 
 ```bash
-COMPOSE_PROFILES= docker compose up -d --build --no-deps <services>
+cd apps/infra && docker compose up -d
+# or: cd scripts && make setup-infra MODE=compose
+
+cd apps/kafka-producer   # or kafka-worker
+docker compose up -d --build --no-deps <services>
 ```
 
 ## Cluster deploy (pipeline)

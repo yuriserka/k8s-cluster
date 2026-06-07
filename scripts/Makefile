@@ -20,7 +20,7 @@ ifndef REPOSITORY
   REPOSITORY := $(firstword $(filter $(REPOSITORIES),$(filter-out deploy-app,$(MAKECMDGOALS))))
 endif
 
-.PHONY: help venv install install-quiet lint format check deploy-app print-repositories
+.PHONY: help venv install install-quiet lint format check deploy-app setup-infra print-repositories
 
 help:
 	@echo "scripts targets:"
@@ -30,6 +30,8 @@ help:
 	@echo "  make format               Apply black to scripts/"
 	@echo "  make check                lint (no tests in scripts today)"
 	@echo "  make deploy-app <repo>    Run full pipeline (e.g. make deploy-app kafka-worker)"
+	@echo "  make setup-infra          Install infra (cluster default; MODE=compose for Compose)"
+	@echo "    Optional: MODE=compose WITH_KAFKA_UI=1"
 	@echo "  Available repositories: $(REPOSITORIES)"
 
 venv:
@@ -71,3 +73,8 @@ ifneq ($(filter $(REPOSITORY),$(REPOSITORIES)),$(REPOSITORY))
 	$(error Unknown repository "$(REPOSITORY)")
 endif
 	$(PYTHON) pipeline_parser.py $(REPOSITORY)
+
+setup-infra: install-quiet
+	$(PYTHON) install_infra.py \
+		$(if $(MODE),--mode $(MODE),) \
+		$(if $(WITH_KAFKA_UI),--with-kafka-ui,)

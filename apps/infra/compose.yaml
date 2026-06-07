@@ -1,0 +1,102 @@
+# Shared local dev infra: postgres, kafka, localstack on network k8s-cluster-local.
+# Start once from this directory:
+#   docker compose up -d
+# Or: cd scripts && python install_infra.py --mode compose
+
+x-aws-vault-env-file: &aws-vault-env-file
+  ../../resources/vault/_admin/aws/dev/.env
+
+networks:
+  k8s-cluster-local:
+    name: k8s-cluster-local
+    driver: bridge
+
+services:
+  postgres:
+    container_name: k8s-cluster-postgres
+    image: bitnami/postgresql:16
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/bitnami/postgresql
+      - ../kafka-worker/initdb:/docker-entrypoint-initdb.d:ro
+    environment:
+      POSTGRESQL_USERNAME: ysdcr
+      POSTGRESQL_PASSWORD: ysdcr
+      POSTGRESQL_POSTGRES_PASSWORD: admin
+      POSTGRESQL_DATABASE: kafka-producer
+    networks:
+      k8s-cluster-local:
+        aliases:
+          - postgres
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+
+  kafka:
+    container_name: k8s-cluster-kafka
+    image: bitnamilegacy/kafka:4.0.0-debian-12-r10
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka_data:/bitnami
+    environment:
+      KAFKA_CFG_NODE_ID: 0
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+    networks:
+      k8s-cluster-local:
+        aliases:
+          - kafka
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+
+  localstack:
+    container_name: k8s-cluster-localstack
+    image: localstack/localstack
+    ports:
+      - "127.0.0.1:4566:4566"
+      - "127.0.0.1:4510-4559:4510-4559"
+    env_file:
+      - *aws-vault-env-file
+    environment:
+      DEBUG: "0"
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      k8s-cluster-local:
+        aliases:
+          - localstack
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+
+volumes:
+  postgres_data:
+    name: k8s-cluster-postgres-data
+  kafka_data:
+    name: k8s-cluster-kafka-data
+  localstack_data:
+    name: k8s-cluster-localstack-data

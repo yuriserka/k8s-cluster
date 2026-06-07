@@ -4,8 +4,17 @@ Bitnami chart **32.4.3** (Kafka **4.0.0**, KRaft). Images use `bitnamilegacy/kaf
 
 ### Installing
 
+Recommended:
+
 ```bash
-helm install kafka bitnami/kafka -n dev -f apps/infra/kafka/values.yaml
+cd scripts
+make setup-infra
+```
+
+Manual Helm equivalent:
+
+```bash
+helm upgrade --install kafka bitnami/kafka -n dev -f apps/infra/kafka/values.yaml
 ```
 
 Upgrade after changing values:

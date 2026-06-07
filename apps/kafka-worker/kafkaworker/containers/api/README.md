@@ -15,12 +15,13 @@ For minikube image builds, load Docker into minikube first — see [project READ
 Built from shared [`Dockerfile.dev`](../Dockerfile.dev) with `CONTAINER=api`; API service in [`compose.yaml`](../../../compose.yaml):
 
 ```bash
-docker compose up -d postgres
+cd ../../../../infra && docker compose up -d
+cd ../kafka-worker
 make migrate   # or: docker compose run --rm api python manage.py migrate
 docker compose up api --build
 ```
 
-If infra is already running from [kafka-producer](../../../kafka-producer/README.md), use `COMPOSE_PROFILES= docker compose up -d --build --no-deps api`.
+If infra is already running, use `docker compose up -d --build --no-deps api`.
 
 Gunicorn uses `--graceful-timeout 30` and `--timeout 60` (compose and cluster [`kube/dev/api.yaml`](../../../kube/dev/api.yaml)).
 

@@ -28,24 +28,53 @@ make check                             # alias for lint
 make print-repositories                # list deployable repos (excludes infra)
 make deploy-app kafka-worker           # install-quiet + full pipeline_parser.py
 make deploy-app kafka-producer
+make setup-infra                       # cluster infra (PG + Kafka + LocalStack)
+make setup-infra MODE=compose          # Docker Compose infra from apps/infra/
+make setup-infra WITH_KAFKA_UI=1       # also install Kafka UI (cluster)
 ```
 
 `deploy-app` runs `install-quiet` then `pipeline_parser.py <repo>`. Available repos match folders under `apps/` except `infra`.
 
 **CLI conventions:** Every script uses [Typer](https://typer.tiangolo.com/). Options use descriptive long names (`--namespace`, `--repository`, …). Run `python <script>.py --help` for the full list.
 
-For cluster workflows, start infra from the [project README](../README.md) first.
+For cluster workflows, start infra first:
+
+```bash
+make setup-infra
+```
+
+Or manually: `python install_infra.py --help`.
 
 ## Scripts overview
 
 | Script | Purpose |
 |--------|---------|
+| [`install_infra.py`](install_infra.py) | Installs shared infra (cluster: Helm; compose: `apps/infra/compose.yaml`) |
 | [`pipeline_parser.py`](pipeline_parser.py) | Runs an app's full `.pipeline` file (services + steps) |
 | [`create_database.py`](create_database.py) | Creates a PostgreSQL database in the cluster and grants the app user ownership of the DB and `public` schema (PG15+) |
 | [`publish_app.py`](publish_app.py) | Builds a Docker image for one application component |
 | [`install_app.py`](install_app.py) | Renders Helm values and runs `helm upgrade --install`; stamps pods with pipeline metadata |
 | [`remove_all_pods.py`](remove_all_pods.py) | Uninstalls every Helm release declared by `kind: install` steps in an app's `.pipeline` |
 | [`repo_paths.py`](repo_paths.py) | Shared `REPO_ROOT`, `SCRIPT_DIR`, and `resolve_path()` used by the scripts above |
+
+## `install_infra.py`
+
+Installs PostgreSQL, Kafka, and LocalStack (Kafka UI is opt-in).
+
+```bash
+python install_infra.py                              # cluster (default namespace dev)
+python install_infra.py --mode compose               # Docker Compose from apps/infra/
+python install_infra.py --with-kafka-ui              # cluster only
+make setup-infra                                     # Makefile wrapper
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--mode` | `cluster` | `cluster` or `compose` |
+| `--namespace` | `dev` | Kubernetes namespace (cluster mode) |
+| `--with-kafka-ui` | off | Install Kafka UI Helm release |
+
+Cluster mode requires minikube + helm. LocalStack auth token is read from `resources/vault/_admin/aws/<namespace>/.env`. App deploy (`make deploy-app`) expects cluster infra to be running first.
 
 ## Typical workflow
 
@@ -321,7 +350,7 @@ k8s-cluster/
 
 ## Troubleshooting
 
-- **Compose container name already in use** (`k8s-cluster-kafka`, etc.) — infra is already running from another app; use `COMPOSE_PROFILES= docker compose up -d --build --no-deps <services>` (see app READMEs).
+- **Compose container name already in use** (`k8s-cluster-kafka`, etc.) — infra is already running from `apps/infra/`; start apps with `docker compose up -d --build --no-deps <services>` (see app READMEs).
 - **Docker container name already in use** (pipeline) — `docker rm -f <repo>-<service_name>` or re-run `pipeline_parser.py`.
 - **`permission denied for schema public`** (Django migrations on cluster) — run `create_database.py` for that repo/namespace, then migrate again.
 - **Pipeline fails on `rsync`** — run from `scripts/` (or any cwd; paths use `REPO_ROOT`).

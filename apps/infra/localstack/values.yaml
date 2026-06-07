@@ -1,0 +1,34 @@
+fullnameOverride: localstack
+
+image:
+  repository: localstack/localstack
+  tag: latest
+  pullPolicy: IfNotPresent
+
+debug: false
+
+service:
+  type: ClusterIP
+  edgeService:
+    targetPort: 4566
+
+resources:
+  limits:
+    cpu: "1.0"
+    memory: 1Gi
+  requests:
+    cpu: "0.25"
+    memory: 256Mi
+
+volumes:
+  - name: docker-sock
+    hostPath:
+      path: /var/run/docker.sock
+      type: Socket
+
+volumeMounts:
+  - name: docker-sock
+    mountPath: /var/run/docker.sock
+
+# LOCALSTACK_AUTH_TOKEN is injected at install time by install_infra.py from vault.
+extraEnvVars: []

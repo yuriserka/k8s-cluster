@@ -16,21 +16,25 @@ Each README covers **run** (env vars) and **tests** for that piece. Lint and cov
 
 From this directory, with [minikube docker-env](../../README.md#startingstoping) only if you build images for the cluster:
 
-[`compose.yaml`](compose.yaml) is self-contained on network **`k8s-cluster-local`**. Infra (Postgres, Kafka, LocalStack) uses the `infra` profile (enabled via [`.env`](.env)).
+Start shared infra first from [`../infra/`](../infra/) (Postgres, Kafka, LocalStack on network **`k8s-cluster-local`**).
 
-**This app only:**
+**Infra + this app:**
 
 ```bash
+cd ../infra && docker compose up -d
+cd ../kafka-producer
 docker compose up --build
-docker compose up -d postgres && make migrate   # required before API/scheduler use
+make migrate   # after Postgres is up on k8s-cluster-local
 ```
+
+Or from `scripts/`: `make setup-infra MODE=compose`
 
 **Note:** `docker compose up` does **not** run Flyway automatically — run `make migrate` after Postgres is up.
 
-**Second app while infra is already running** (skip infra to avoid container-name conflicts):
+**App services only** (when infra is already running):
 
 ```bash
-COMPOSE_PROFILES= docker compose up -d --build --no-deps api scheduler
+docker compose up -d --build --no-deps api scheduler
 ```
 
 - API: http://localhost:8080  
@@ -43,7 +47,7 @@ Create Kafka topic `example-topic` — [Kafka infra README](../infra/kafka/READM
 
 ## Shared infra with kafka-worker
 
-Both apps share network **`k8s-cluster-local`** and fixed container names (`k8s-cluster-postgres`, `k8s-cluster-kafka`, `k8s-cluster-localstack`). Start infra from either app's compose (`.env` enables the `infra` profile).
+Both apps share network **`k8s-cluster-local`** and fixed container names (`k8s-cluster-postgres`, `k8s-cluster-kafka`, `k8s-cluster-localstack`). Start infra once from [`../infra/`](../infra/) — see [infra README](../infra/README.md).
 
 If [kafka-worker](../kafka-worker/README.md) started Postgres first, database `kafka-worker` is created via [`initdb/`](../kafka-worker/initdb/) only on **first** volume init. If the volume already existed, create the worker DB manually or re-run worker migrations.
 
@@ -106,7 +110,7 @@ From `apps/kafka-producer/`:
 |------|---------|
 | Makefile (all targets) | `make help` |
 | Lint + test gate | `make check` |
-| Migrate (compose Postgres) | `make migrate` *(start postgres first: `docker compose up -d postgres`)* |
+| Migrate (compose Postgres) | `make migrate` *(start infra first: `cd ../infra && docker compose up -d`)* |
 | Lint (Checkstyle + PMD, all modules) | `./gradlew codeChecks` or `make code-checks` |
 | Lint (api + core) | `./gradlew :app:containers:api:codeChecks` |
 | Lint (scheduler + core) | `./gradlew :app:containers:scheduler:codeChecks` |

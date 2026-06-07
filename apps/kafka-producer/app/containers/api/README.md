@@ -15,12 +15,13 @@ For minikube image builds, load Docker into minikube first — see [project READ
 Starts dependencies and builds via shared [`Dockerfile.dev`](../Dockerfile.dev) with `CONTAINER=api` (bootJar only — no lint/tests in the image build). Run `./gradlew :app:containers:api:codeChecks` and `./gradlew test` on the host when you want CI gates — see [kafka-producer README](../../../README.md#repo-wide-gradle-tasks).
 
 ```bash
-docker compose up -d postgres
+cd ../../../../infra && docker compose up -d
+cd ../kafka-producer
 make migrate
 docker compose up api --build
 ```
 
-If infra is already running from [kafka-worker](../../../kafka-worker/README.md), use `COMPOSE_PROFILES= docker compose up -d --build --no-deps api` instead.
+If infra is already running, use `docker compose up -d --build --no-deps api` instead.
 
 Uses profile `local` (see [`application-local.yaml`](../../core/src/main/resources/application-local.yaml)): Postgres `postgres:5432`, Kafka `kafka:9092`.
 

@@ -2,10 +2,17 @@
 
 ## Installing
 
-From the repository root:
+Recommended:
 
 ```bash
-helm install postgresql bitnami/postgresql -n dev -f apps/infra/postgresql/values.yaml
+cd scripts
+make setup-infra
+```
+
+Manual Helm equivalent:
+
+```bash
+helm upgrade --install postgresql bitnami/postgresql -n dev -f apps/infra/postgresql/values.yaml
 ```
 
 ## Connecting to postgres instance
@@ -22,7 +29,7 @@ minikube kubectl -- port-forward -n dev postgresql-0 5432:5432
 
 | | Local Compose | Cluster (`dev`) |
 |--|--|--|
-| Container | `k8s-cluster-postgres` on network `k8s-cluster-local` | Helm `postgresql-0` pod |
+| Container | `k8s-cluster-postgres` on network `k8s-cluster-local` (see [`../compose.yaml`](../compose.yaml)) | Helm `postgresql-0` pod |
 | Default user | `ysdcr` / `ysdcr` | Admin: vault `_admin`; app: vault per repo |
 | Databases | `kafka-producer`, `kafka-worker` (worker via [`initdb`](../../kafka-worker/initdb/) on first volume init) | Created by `create_database.py` per app |
 | Migrations | Producer: `make migrate` (Gradle Flyway); worker: `make migrate` (Django) | Pipeline `dev-migrate` step |

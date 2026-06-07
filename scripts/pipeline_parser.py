@@ -13,13 +13,12 @@ import create_database
 import install_app
 import publish_app
 from cli_common import make_cli_app
+from infra_common import DEFAULT_POSTGRES_SERVICE, READY_TIMEOUT_SECONDS, wait_for_postgresql_ready
 from repo_paths import REPO_ROOT, SCRIPT_DIR
 
 app = make_cli_app()
 
-DEFAULT_POSTGRES_SERVICE = "postgresql"
 DEFAULT_POSTGRES_PORT = "5432"
-POSTGRES_READY_TIMEOUT_SECONDS = 120
 
 
 class ServiceArgs(NamedTuple):
@@ -225,14 +224,6 @@ def resolve_cluster_database_host(namespace: str, secrets: dict) -> str:
     return host
 
 
-def wait_for_postgresql_ready(namespace: str) -> int:
-    return execute_cli_command(
-        "minikube kubectl -- wait --for=condition=ready "
-        f"pod/{DEFAULT_POSTGRES_SERVICE}-0 -n {shlex.quote(namespace)} "
-        f"--timeout={POSTGRES_READY_TIMEOUT_SECONDS}s"
-    )
-
-
 def load_cluster_database_env(repository: str, namespace: str) -> dict:
     secrets = read_vault_database_secrets(repository, namespace)
     cluster_host = resolve_cluster_database_host(namespace, secrets)
@@ -283,7 +274,7 @@ def handle_database_migration_step(args: DatabaseMigrationStepArgs, temp_folder_
     if exit_code != 0:
         print(
             f'PostgreSQL is not ready in namespace "{args.env}" '
-            f"(waited {POSTGRES_READY_TIMEOUT_SECONDS}s for pod/{DEFAULT_POSTGRES_SERVICE}-0)."
+            f"(waited {READY_TIMEOUT_SECONDS}s for pod/{DEFAULT_POSTGRES_SERVICE}-0)."
         )
         return exit_code
 

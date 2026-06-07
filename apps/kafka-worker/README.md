@@ -18,19 +18,23 @@ Each README covers **run** (env vars), **tests**, and **lint**. All three use sh
 
 From this directory:
 
-[`compose.yaml`](compose.yaml) is self-contained on network **`k8s-cluster-local`**. Infra uses the `infra` profile (enabled via [`.env`](.env)). Init script [`initdb/`](initdb/) creates database `kafka-worker` on first Postgres volume init.
+Start shared infra first from [`../infra/`](../infra/) on network **`k8s-cluster-local`**. Init script [`initdb/`](initdb/) creates database `kafka-worker` on first Postgres volume init (mounted by infra compose).
 
-**This app only:**
+**Infra + this app:**
 
 ```bash
+cd ../infra && docker compose up -d
+cd ../kafka-worker
 docker compose up --build
-docker compose up -d postgres && make migrate   # or: docker compose run --rm api python manage.py migrate
+make migrate   # or: docker compose run --rm api python manage.py migrate
 ```
 
-**Second app while infra is already running** (skip infra to avoid container-name conflicts):
+Or from `scripts/`: `make setup-infra MODE=compose`
+
+**App services only** (when infra is already running):
 
 ```bash
-COMPOSE_PROFILES= docker compose up -d --build --no-deps api scheduler example-topic-consumer
+docker compose up -d --build --no-deps api scheduler example-topic-consumer
 ```
 
 | Service | Host port |
@@ -46,7 +50,7 @@ Create Kafka topic `example-topic` — [Kafka infra README](../infra/kafka/READM
 
 ## Shared infra with kafka-producer
 
-Both apps share network **`k8s-cluster-local`** and fixed container names. See [kafka-producer README](../kafka-producer/README.md#shared-infra-with-kafka-worker).
+Both apps share network **`k8s-cluster-local`** and fixed container names. Start infra from [`../infra/`](../infra/) — see [infra README](../infra/README.md) and [kafka-producer README](../kafka-producer/README.md#shared-infra-with-kafka-worker).
 
 [`initdb/`](initdb/) creates database `kafka-worker` only on **first** Postgres volume init. If [kafka-producer](../kafka-producer/README.md) started Postgres first on an existing volume, run `make migrate` after ensuring the DB exists, or use [`create_database.py`](../../scripts/create_database.py) in cluster workflows.
 
@@ -55,7 +59,7 @@ Both apps share network **`k8s-cluster-local`** and fixed container names. See [
 | File | Used by |
 |------|---------|
 | [`resources/vault/_admin/grafana/dev/.env`](../resources/vault/_admin/grafana/dev/.env) | API, scheduler, consumer (OTLP) |
-| [`resources/vault/_admin/aws/dev/.env`](../resources/vault/_admin/aws/dev/.env) | LocalStack (`LOCALSTACK_AUTH_TOKEN`) |
+| [`resources/vault/_admin/aws/dev/.env`](../resources/vault/_admin/aws/dev/.env) | Infra LocalStack (`LOCALSTACK_AUTH_TOKEN`) |
 
 Copy from the matching `.env.example` files before first run.
 

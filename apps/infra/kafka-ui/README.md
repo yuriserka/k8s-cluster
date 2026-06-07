@@ -4,10 +4,19 @@ Use Kafka UI to inspect topics, messages, and consumer groups.
 
 ### Installing
 
-From the repository root:
+Kafka UI is **not** installed by default. Opt in when running infra setup:
 
 ```bash
-helm install kafka-ui kafka-ui/kafka-ui -n dev -f apps/infra/kafka-ui/values.yaml
+cd scripts
+python install_infra.py --with-kafka-ui
+# or: make setup-infra WITH_KAFKA_UI=1
+```
+
+Manual Helm equivalent:
+
+```bash
+helm repo add kafka-ui https://provectus.github.io/kafka-ui-charts
+helm upgrade --install kafka-ui kafka-ui/kafka-ui -n dev -f apps/infra/kafka-ui/values.yaml
 ```
 
 ### Connecting
