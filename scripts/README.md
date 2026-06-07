@@ -56,6 +56,27 @@ Or manually: `python install_infra.py --help`.
 | [`install_app.py`](install_app.py) | Renders Helm values and runs `helm upgrade --install`; stamps pods with pipeline metadata |
 | [`remove_all_pods.py`](remove_all_pods.py) | Uninstalls every Helm release declared by `kind: install` steps in an app's `.pipeline` |
 | [`repo_paths.py`](repo_paths.py) | Shared `REPO_ROOT`, `SCRIPT_DIR`, and `resolve_path()` used by the scripts above |
+| [`infra_common.py`](infra_common.py) | Shared Kubernetes pod wait helpers (state machine polling) |
+
+## Pod wait state machine
+
+Cluster scripts poll pod status every **5 seconds** (default timeout **120s**) and print lifecycle lines:
+
+```text
+postgresql-0: PENDING
+postgresql-0: STARTED
+postgresql-0: PROGRESSING
+postgresql-0: FINISHED
+```
+
+States: `PENDING` → `STARTED` → `PROGRESSING` (re-echoed every 5s while not ready) → `FINISHED`. On error or timeout: `FAILED`, followed by a warning with `kubectl get` / `describe` commands for the pod.
+
+Used by:
+
+- [`install_infra.py`](install_infra.py) — infra pods after Helm (`make setup-infra`)
+- [`pipeline_parser.py`](pipeline_parser.py) — `database_migration` one-shot pods and post-`install` rollout pods (matched by `pipeline_id` annotation)
+
+Compose infra waits (`install_infra.py --mode compose`) still use Docker container checks, not this state machine.
 
 ## `install_infra.py`
 
@@ -205,9 +226,9 @@ Defined in each app's `apps/<repo>/.pipeline`:
 | *(none)* | Runs shell `cmd` list in the temp pipeline directory |
 | *(none)* `test` + minikube docker-env | Same as above; if `MINIKUBE_ACTIVE_DOCKERD` (or minikube `DOCKER_HOST`) is set, the parser prepends `DOCKER_HOST=unix:///var/run/docker.sock` so Testcontainers use Docker Desktop — publish steps still use minikube Docker via `--use-minikube-docker` |
 | `credentials` | Writes vault secrets to `output_file` (`path` format: `database:<target>:<namespace>`) |
-| `database_migration` | In-cluster migrate via `kubectl run` (no port-forward); see below |
+| `database_migration` | In-cluster migrate via one-shot pod + state-machine wait; see below |
 | `publish` | Calls `publish_app.main()` with `--tag` set to the step `env` (same as `--namespace`) |
-| `install` | Calls `install_app.install_app()` with `--tag` set to the step `env` and shared pipeline metadata (`pipeline_id`, ISO timestamp) |
+| `install` | Calls `install_app.install_app()` then waits for rollout pod with matching `pipeline_id` annotation |
 
 ### Pipeline `services` (optional)
 
@@ -261,7 +282,7 @@ steps:
 
 ### `database_migration` (in-cluster)
 
-`dev-migrate` always runs inside minikube: waits for `postgresql-0` to be ready, runs `create_database.py`, then one-off pods with `DATABASE_HOST` from vault `CLUSTER_HOST` (Kubernetes Service DNS, default `postgresql`). Do not use `minikube service` URLs for in-cluster migrate pods.
+`dev-migrate` runs inside minikube: waits for `postgresql-0` (state machine), runs `create_database.py`, then creates a one-shot migrate pod, waits for `FINISHED` (`phase=Succeeded`), and deletes the pod.
 
 Publish the migrate image **before** `dev-migrate`:
 

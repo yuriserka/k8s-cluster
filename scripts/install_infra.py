@@ -12,6 +12,7 @@ from infra_common import (
     READY_TIMEOUT_SECONDS,
     execute_cli_command,
     wait_for_kafka_ready,
+    wait_for_kafka_ui_ready,
     wait_for_localstack_ready,
     wait_for_postgresql_ready,
 )
@@ -132,7 +133,10 @@ def install_cluster_localstack(namespace: str) -> int:
 
 def install_cluster_kafka_ui(namespace: str) -> int:
     values_file = os.path.join(INFRA_DIR, "kafka-ui", "values.yaml")
-    return helm_upgrade_install("kafka-ui", "kafka-ui/kafka-ui", namespace, values_file)
+    exit_code = helm_upgrade_install("kafka-ui", "kafka-ui/kafka-ui", namespace, values_file)
+    if exit_code != 0:
+        return exit_code
+    return wait_for_kafka_ui_ready(namespace)
 
 
 def wait_for_compose_container(container_name: str, timeout_seconds: int = READY_TIMEOUT_SECONDS) -> int:

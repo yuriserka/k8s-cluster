@@ -13,7 +13,16 @@ import create_database
 import install_app
 import publish_app
 from cli_common import make_cli_app
-from infra_common import DEFAULT_POSTGRES_SERVICE, READY_TIMEOUT_SECONDS, wait_for_postgresql_ready
+from infra_common import (
+    DEFAULT_POSTGRES_SERVICE,
+    READY_TIMEOUT_SECONDS,
+    delete_pod,
+    get_pod,
+    get_pod_container_exit_code,
+    wait_for_deployment_rollout,
+    wait_for_pod,
+    wait_for_postgresql_ready,
+)
 from repo_paths import REPO_ROOT, SCRIPT_DIR
 
 app = make_cli_app()
@@ -138,7 +147,7 @@ def handle_install_step(
     pipeline_started_at: str,
 ):
     print("Installing app with args:", args)
-    return install_app.install_app(
+    exit_code = install_app.install_app(
         application=args.application,
         repository=args.repo,
         environment_file=args.params_file,
@@ -147,6 +156,15 @@ def handle_install_step(
         tag=args.env,
         pipeline_id=pipeline_id,
         pipeline_started_at=pipeline_started_at,
+    )
+    if exit_code != 0:
+        return exit_code
+
+    return wait_for_deployment_rollout(
+        args.application,
+        args.env,
+        pipeline_id,
+        timeout_seconds=READY_TIMEOUT_SECONDS,
     )
 
 
@@ -258,13 +276,32 @@ def run_in_cluster_migration_command(
         },
     }
     pod_name = f"migrate-{run_id}"
-    cmd = (
+    create_cmd = (
         f"minikube kubectl -- run {shlex.quote(pod_name)} "
-        f"--rm -i --restart=Never -n {shlex.quote(namespace)} "
+        f"--restart=Never -n {shlex.quote(namespace)} "
         f"--image={shlex.quote(image)} "
         f"--overrides={shlex.quote(json.dumps(overrides))}"
     )
-    return execute_cli_command(cmd)
+    exit_code = execute_cli_command(create_cmd)
+    if exit_code != 0:
+        return exit_code
+
+    exit_code = wait_for_pod(
+        pod_name,
+        namespace,
+        timeout_seconds=READY_TIMEOUT_SECONDS,
+        expect_succeeded=True,
+        label=pod_name,
+    )
+
+    pod = get_pod(pod_name, namespace)
+    container_exit_code = get_pod_container_exit_code(pod, "migrate") if pod else 1
+    if exit_code != 0 or container_exit_code != 0:
+        delete_pod(pod_name, namespace)
+        return container_exit_code or exit_code
+
+    delete_pod(pod_name, namespace)
+    return 0
 
 
 def handle_database_migration_step(args: DatabaseMigrationStepArgs, temp_folder_path: str):

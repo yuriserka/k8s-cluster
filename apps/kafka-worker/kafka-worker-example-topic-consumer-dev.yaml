@@ -67,8 +67,8 @@ spec:
   template:
     metadata:
       annotations:
-        pipeline_deployed_at: "2026-06-06T15:34:11.279708+00:00"
-        pipeline_id: 7f856905-4d6f-4be1-874a-0514c3dc33dc
+        pipeline_deployed_at: "2026-06-07T19:17:24.865929+00:00"
+        pipeline_id: 45eb87d1-997b-42aa-88b2-aa4ed35c9ff6
       labels:
         helm.sh/chart: dev-0.1.0
         app.kubernetes.io/name: dev
