@@ -21,7 +21,7 @@ help:
 	@echo "  make docker-build-scheduler Build scheduler dev image locally"
 	@echo "  make docker-build-consumer  Build example-topic-consumer dev image locally"
 	@echo "  make migrate              Django migrate against compose Postgres (docker compose run api)"
-	@echo "  make pipeline             Run full cluster pipeline via scripts/pipeline_parser.py"
+	@echo "  make pipeline             Run full cluster pipeline via python -m k8s_cluster pipeline run"
 
 venv create-env:
 	@echo "Creating virtual environment..."
@@ -57,4 +57,4 @@ migrate:
 	docker compose run --rm api python manage.py migrate
 
 pipeline:
-	cd ../../scripts && python3 pipeline_parser.py kafka-worker
+	cd ../../scripts && PYTHONPATH=. python3 -m k8s_cluster pipeline run kafka-worker

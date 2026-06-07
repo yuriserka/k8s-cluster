@@ -2,54 +2,29 @@ import os
 import shlex
 import tempfile
 import time
-from enum import Enum
 
-import typer
 import yaml
 
-from cli_common import exit_on_failure, make_cli_app
-from infra_common import (
+from k8s_cluster.commands.infra.constants import (
+    COMPOSE_DIR,
+    COMPOSE_LOCALSTACK_CONTAINER,
+    COMPOSE_POSTGRES_CONTAINER,
+    HELM_REPOS,
+    INFRA_DIR,
+)
+from k8s_cluster.commands.infra.types import InstallInfraRequest, InstallMode
+from k8s_cluster.paths import REPO_ROOT
+from k8s_cluster.services.helm import ensure_helm_repos, helm_upgrade_install
+from k8s_cluster.services.pod_wait import (
     READY_TIMEOUT_SECONDS,
-    execute_cli_command,
     wait_for_kafka_ready,
     wait_for_kafka_ui_ready,
     wait_for_localstack_ready,
     wait_for_postgresql_ready,
 )
-from repo_paths import REPO_ROOT
-
-app = make_cli_app()
-
-INFRA_DIR = os.path.join(REPO_ROOT, "apps", "infra")
-COMPOSE_DIR = INFRA_DIR
-COMPOSE_POSTGRES_CONTAINER = "k8s-cluster-postgres"
-COMPOSE_LOCALSTACK_CONTAINER = "k8s-cluster-localstack"
-
-HELM_REPOS = {
-    "bitnami": "https://charts.bitnami.com/bitnami",
-    "localstack": "https://localstack.github.io/helm-charts",
-    "kafka-ui": "https://provectus.github.io/kafka-ui-charts",
-}
-
-
-class InstallMode(str, Enum):
-    cluster = "cluster"
-    compose = "compose"
-
-
-def read_env_file(env_file: str) -> dict:
-    if not os.path.isfile(env_file):
-        raise FileNotFoundError(f"Environment file {env_file} does not exist.")
-
-    secrets = {}
-    with open(env_file) as secrets_file:
-        for line in secrets_file:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            key, value = line.split("=", 1)
-            secrets[key.upper()] = value.strip()
-    return secrets
+from k8s_cluster.utils.compose_runner import execute_cli_command_in_dir
+from k8s_cluster.utils.env_files import read_env_file
+from k8s_cluster.utils.shell import execute_cli_command
 
 
 def get_localstack_auth_token(namespace: str) -> str:
@@ -63,25 +38,10 @@ def get_localstack_auth_token(namespace: str) -> str:
     return token
 
 
-def ensure_helm_repos(repo_names: list[str]) -> int:
-    for repo_name in repo_names:
-        execute_cli_command(
-            f"helm repo add {shlex.quote(repo_name)} {shlex.quote(HELM_REPOS[repo_name])} " "2>/dev/null || true"
-        )
-    return execute_cli_command("helm repo update")
-
-
 def ensure_namespace(namespace: str) -> int:
     return execute_cli_command(
         f"minikube kubectl -- create namespace {shlex.quote(namespace)} "
         "--dry-run=client -o yaml | minikube kubectl -- apply -f -"
-    )
-
-
-def helm_upgrade_install(release: str, chart: str, namespace: str, values_file: str) -> int:
-    return execute_cli_command(
-        f"helm upgrade --install {shlex.quote(release)} {shlex.quote(chart)} "
-        f"-n {shlex.quote(namespace)} -f {shlex.quote(values_file)}"
     )
 
 
@@ -170,16 +130,6 @@ def wait_for_compose_postgres(timeout_seconds: int = READY_TIMEOUT_SECONDS) -> i
     return 1
 
 
-def execute_cli_command_in_dir(command: str, cwd: str) -> int:
-    print(f"Executing command in {cwd}: {command}")
-    previous_cwd = os.getcwd()
-    try:
-        os.chdir(cwd)
-        return os.system(command)
-    finally:
-        os.chdir(previous_cwd)
-
-
 def cluster_preflight() -> int:
     exit_code = execute_cli_command("minikube status")
     if exit_code != 0:
@@ -215,7 +165,7 @@ def install_cluster(namespace: str, with_kafka_ui: bool) -> int:
     if with_kafka_ui:
         repo_names.append("kafka-ui")
 
-    exit_code = ensure_helm_repos(repo_names)
+    exit_code = ensure_helm_repos(repo_names, HELM_REPOS)
     if exit_code != 0:
         return exit_code
 
@@ -270,34 +220,7 @@ def install_compose_mode() -> int:
     return 0
 
 
-@app.command()
-def cli(
-    mode: InstallMode = typer.Option(
-        InstallMode.cluster,
-        "--mode",
-        help="cluster (minikube + Helm) or compose (Docker Compose from apps/infra)",
-    ),
-    namespace: str = typer.Option("dev", help="Kubernetes namespace (cluster mode only)"),
-    with_kafka_ui: bool = typer.Option(
-        False,
-        "--with-kafka-ui",
-        help="Install Kafka UI (cluster mode only; skipped by default)",
-    ),
-) -> None:
-    try:
-        if mode == InstallMode.cluster:
-            exit_code = install_cluster(namespace, with_kafka_ui)
-        else:
-            if with_kafka_ui:
-                typer.echo("--with-kafka-ui applies to cluster mode only.", err=True)
-                raise typer.Exit(code=1)
-            exit_code = install_compose_mode()
-    except (FileNotFoundError, ValueError) as error:
-        typer.echo(str(error), err=True)
-        raise typer.Exit(code=1) from error
-
-    exit_on_failure(exit_code, "")
-
-
-if __name__ == "__main__":
-    app()
+def install_infra(request: InstallInfraRequest) -> int:
+    if request.mode == InstallMode.cluster:
+        return install_cluster(request.namespace, request.with_kafka_ui)
+    return install_compose_mode()

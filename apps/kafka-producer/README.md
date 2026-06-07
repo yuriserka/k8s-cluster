@@ -76,7 +76,7 @@ Verify: call the API, then check traces in Grafana Cloud for those service names
 
 ### Cluster (`dev` namespace)
 
-OpenTelemetry is injected at **publish time** by [`publish_app.py`](../../scripts/publish_app.py) when [`resources/kafka-producer-api/dev.yaml`](../../resources/kafka-producer-api/dev.yaml) (and scheduler) define:
+OpenTelemetry is injected at **publish time** by [`app publish`](../../scripts/k8s_cluster/commands/app/publish_service.py) when [`resources/kafka-producer-api/dev.yaml`](../../resources/kafka-producer-api/dev.yaml) (and scheduler) define:
 
 ```yaml
 instrumentation:
@@ -97,7 +97,7 @@ OTLP endpoint/headers come from `resources/vault/_admin/grafana/dev/.env`. `serv
 ```bash
 cd scripts
 make deploy-app kafka-producer
-# or: python pipeline_parser.py kafka-producer
+# or: python -m k8s_cluster pipeline run kafka-producer
 ```
 
 See [scripts/README.md](../../scripts/README.md).
@@ -147,7 +147,7 @@ Integration tests start a **Postgres container via Testcontainers** ([docs](http
 
 **WSL + Docker Desktop:** If the Unix socket still fails, enable **“Expose daemon on tcp://localhost:2375 without TLS”** in Docker Desktop → Settings → General and set `export DOCKER_HOST=tcp://localhost:2375` ([WSL docs](https://java.testcontainers.org/supported_docker_environment/windows/)).
 
-**Minikube docker-env:** Testcontainers/Ryuk needs Docker Desktop, not minikube’s Docker. [`pipeline_parser.py`](../../scripts/pipeline_parser.py) detects minikube docker-env in the shell and switches to `DOCKER_HOST=unix:///var/run/docker.sock` for the **`test`** step only. For manual `./gradlew test`, unset minikube docker-env or use the same env override.
+**Minikube docker-env:** Testcontainers/Ryuk needs Docker Desktop, not minikube’s Docker. [`pipeline run`](../../scripts/k8s_cluster/commands/pipeline/runner.py) detects minikube docker-env in the shell and switches to `DOCKER_HOST=unix:///var/run/docker.sock` for the **`test`** step only. For manual `./gradlew test`, unset minikube docker-env or use the same env override.
 
 **Linux CI / native Docker:** Uses the default Unix socket; no extra configuration.
 

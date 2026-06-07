@@ -52,7 +52,7 @@ Create Kafka topic `example-topic` — [Kafka infra README](../infra/kafka/READM
 
 Both apps share network **`k8s-cluster-local`** and fixed container names. Start infra from [`../infra/`](../infra/) — see [infra README](../infra/README.md) and [kafka-producer README](../kafka-producer/README.md#shared-infra-with-kafka-worker).
 
-[`initdb/`](initdb/) creates database `kafka-worker` only on **first** Postgres volume init. If [kafka-producer](../kafka-producer/README.md) started Postgres first on an existing volume, run `make migrate` after ensuring the DB exists, or use [`create_database.py`](../../scripts/create_database.py) in cluster workflows.
+[`initdb/`](initdb/) creates database `kafka-worker` only on **first** Postgres volume init. If [kafka-producer](../kafka-producer/README.md) started Postgres first on an existing volume, run `make migrate` after ensuring the DB exists, or use [`database create`](../../scripts/k8s_cluster/commands/database/service.py) in cluster workflows.
 
 **Vault files for compose:**
 
@@ -83,7 +83,7 @@ To disable telemetry locally, unset vault OTLP values or set `KAFKA_WORKER_LOG_T
 
 ### Cluster (`dev` namespace)
 
-OpenTelemetry is injected at **publish time** by [`publish_app.py`](../../scripts/publish_app.py) when [`resources/kafka-worker-api/dev.yaml`](../../resources/kafka-worker-api/dev.yaml) (and scheduler/consumer) define:
+OpenTelemetry is injected at **publish time** by [`app publish`](../../scripts/k8s_cluster/commands/app/publish_service.py) when [`resources/kafka-worker-api/dev.yaml`](../../resources/kafka-worker-api/dev.yaml) (and scheduler/consumer) define:
 
 ```yaml
 instrumentation:
@@ -113,7 +113,7 @@ Pins `opentelemetry-distro`, runs `opentelemetry-bootstrap`, injects OTLP env fr
 ```bash
 cd scripts
 make deploy-app kafka-worker
-# or: python pipeline_parser.py kafka-worker
+# or: python -m k8s_cluster pipeline run kafka-worker
 ```
 
 See [scripts/README.md](../../scripts/README.md).
@@ -171,7 +171,7 @@ python run_tests.py
 
 **WSL + Docker Desktop:** If the Unix socket fails, enable **“Expose daemon on tcp://localhost:2375 without TLS”** in Docker Desktop → Settings → General and set `export DOCKER_HOST=tcp://localhost:2375`.
 
-**Minikube docker-env:** Testcontainers/Ryuk needs Docker Desktop, not minikube’s Docker. [`postgres_testcontainer.py`](kafkaworker/tests/postgres_testcontainer.py) and [`pipeline_parser.py`](../../scripts/pipeline_parser.py) detect minikube docker-env and switch to `DOCKER_HOST=unix:///var/run/docker.sock` for tests.
+**Minikube docker-env:** Testcontainers/Ryuk needs Docker Desktop, not minikube’s Docker. [`postgres_testcontainer.py`](kafkaworker/tests/postgres_testcontainer.py) and [`pipeline run`](../../scripts/k8s_cluster/commands/pipeline/runner.py) detect minikube docker-env and switch to `DOCKER_HOST=unix:///var/run/docker.sock` for tests.
 
 ## End-to-end test (with producer)
 

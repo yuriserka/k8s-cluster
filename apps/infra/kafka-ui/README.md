@@ -8,7 +8,7 @@ Kafka UI is **not** installed by default. Opt in when running infra setup:
 
 ```bash
 cd scripts
-python install_infra.py --with-kafka-ui
+python -m k8s_cluster infra install --with-kafka-ui
 # or: make setup-infra WITH_KAFKA_UI=1
 ```
 

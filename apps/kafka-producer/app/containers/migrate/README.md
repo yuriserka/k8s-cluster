@@ -78,7 +78,7 @@ On Linux, replace `host.docker.internal` with your host IP or `--network host` i
 
 ```bash
 cd scripts
-python publish_app.py --repository kafka-producer-migrate \
+python -m k8s_cluster app publish --repository kafka-producer-migrate \
   --dockerfile app/containers/migrate/Dockerfile \
   --app-path ../apps/kafka-producer --namespace dev --use-minikube-docker --tag dev
 ```

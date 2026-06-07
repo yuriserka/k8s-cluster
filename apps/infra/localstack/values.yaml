@@ -30,5 +30,5 @@ volumeMounts:
   - name: docker-sock
     mountPath: /var/run/docker.sock
 
-# LOCALSTACK_AUTH_TOKEN is injected at install time by install_infra.py from vault.
+# LOCALSTACK_AUTH_TOKEN is injected at install time by k8s_cluster infra install from vault.
 extraEnvVars: []

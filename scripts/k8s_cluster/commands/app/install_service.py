@@ -1,16 +1,12 @@
 import os
 import tempfile
 import uuid
-import yaml
 from datetime import datetime, timezone
-from typing import Optional
 
-import typer
+import yaml
 
-from cli_common import exit_on_failure, make_cli_app
-from repo_paths import REPO_ROOT, resolve_path
-
-app = make_cli_app()
+from k8s_cluster.commands.app.types import InstallAppRequest
+from k8s_cluster.paths import REPO_ROOT, resolve_path
 
 
 def get_values_template_for(namespace: str) -> dict:
@@ -47,39 +43,6 @@ def get_resources_for(app_name: str, namespace: str) -> dict:
     resources_path = os.path.join(REPO_ROOT, "resources", app_name, f"{namespace}.yaml")
     with open(resources_path) as resources_file:
         return yaml.safe_load(resources_file)
-
-
-def execute_helm_commands(app_name: str, repository: str, namespace: str, values: dict) -> int:
-    chart_path = os.path.join(REPO_ROOT, "envs", namespace)
-    rendered_manifest = os.path.join(REPO_ROOT, "apps", repository, f"{app_name}-{namespace}.yaml")
-
-    os.makedirs(os.path.dirname(rendered_manifest), exist_ok=True)
-
-    with tempfile.NamedTemporaryFile(
-        mode="w",
-        suffix=".yaml",
-        prefix=f"{app_name}-values-",
-        delete=False,
-    ) as result:
-        yaml.safe_dump(
-            values,
-            result,
-            sort_keys=False,
-            default_flow_style=None,
-            allow_unicode=True,
-        )
-        values_file = result.name
-
-    try:
-        template_exit = os.system(
-            f"helm template {app_name} {chart_path} -n {namespace} -f {values_file} >" f" {rendered_manifest}"
-        )
-        if template_exit != 0:
-            return template_exit
-
-        return os.system(f"helm upgrade --install {app_name} {chart_path} -n {namespace} -f {values_file}")
-    finally:
-        os.unlink(values_file)
 
 
 def update_value(obj: dict, path: str, value):
@@ -141,31 +104,20 @@ def resolve_pipeline_metadata(
     )
 
 
-def install_app(
-    application: str,
-    repository: str,
-    environment_file: str,
-    namespace: str,
-    path: str,
-    tag: str = None,
-    pipeline_id: str | None = None,
-    pipeline_started_at: str | None = None,
-) -> int:
-    # os.system(f'k create namespace {namespace}')
-    values = get_values_template_for(namespace)
-    override_value = get_declared_values_for_app(environment_file, namespace, path)
+def build_install_values(request: InstallAppRequest, tag: str) -> dict:
+    values = get_values_template_for(request.namespace)
+    override_value = get_declared_values_for_app(request.params_file, request.namespace, request.app_path)
 
-    # declared values in app/kube is prioritized over values in envs
     override_value = {
         **override_value,
         "env": {
-            **get_secrets_for_app(repository, namespace),
+            **get_secrets_for_app(request.repository, request.namespace),
             **override_value.get("env", {}),
         },
     }
 
     values_ref = dict(values)
-    update_value(values_ref, "image.repository", f"{application}-{namespace}")
+    update_value(values_ref, "image.repository", f"{request.application}-{request.namespace}")
     update_value(values_ref, "image.tag", tag)
     for key, value in override_value.items():
         if "Probe" in key:
@@ -178,7 +130,7 @@ def install_app(
             values_ref[key] = {**values_ref[key], **value}
 
     handle_probes(values_ref)
-    resources = get_resources_for(application, namespace)
+    resources = get_resources_for(request.application, request.namespace)
     for key, value in resources.items():
         if key not in values_ref:
             values_ref[key] = value
@@ -186,66 +138,51 @@ def install_app(
             values_ref[key] = {**values_ref[key], **value}
 
     resolved_pipeline_id, resolved_pipeline_started_at = resolve_pipeline_metadata(
-        pipeline_id,
-        pipeline_started_at,
+        request.pipeline_id,
+        request.pipeline_started_at,
     )
     values_ref["podAnnotations"] = {
         **values_ref.get("podAnnotations", {}),
         "pipeline_id": resolved_pipeline_id,
         "pipeline_deployed_at": resolved_pipeline_started_at,
     }
-
-    return execute_helm_commands(application, repository, namespace, values_ref)
-
-
-def main(
-    application: str,
-    repository: str,
-    environment_file: str,
-    namespace: str,
-    path: str,
-    tag: str,
-    pipeline_id: str | None = None,
-    pipeline_started_at: str | None = None,
-) -> int:
-    tag = tag or "latest"
-    return install_app(
-        application,
-        repository,
-        environment_file,
-        namespace,
-        path,
-        tag,
-        pipeline_id,
-        pipeline_started_at,
-    )
+    return values_ref, resolved_pipeline_id
 
 
-@app.command()
-def cli(
-    application: str = typer.Option(..., help="Helm release / application name"),
-    repository: str = typer.Option(..., help="App folder under apps/ (vault + chart output path)"),
-    params_file: str = typer.Option(..., help="Kube params file under kube/<namespace>/ (e.g. api.yaml)"),
-    app_path: str = typer.Option(..., help="App directory (chart context)"),
-    namespace: str = typer.Option(..., help="Kubernetes namespace (e.g. dev)"),
-    tag: Optional[str] = typer.Option(None, help="Image tag written into Helm values (default: latest)"),
-    pipeline_id: Optional[str] = typer.Option(None, help="Pipeline run UUID (auto-generated if omitted)"),
-    pipeline_started_at: Optional[str] = typer.Option(
-        None, help="Pipeline start time ISO-8601 UTC (auto-generated if omitted)"
-    ),
-) -> None:
-    exit_code = main(
-        application,
-        repository,
-        params_file,
-        namespace,
-        app_path,
-        tag,
-        pipeline_id,
-        pipeline_started_at,
-    )
-    exit_on_failure(exit_code, f"Installation of {application} failed")
+def execute_helm_commands(app_name: str, repository: str, namespace: str, values: dict) -> int:
+    chart_path = os.path.join(REPO_ROOT, "envs", namespace)
+    rendered_manifest = os.path.join(REPO_ROOT, "apps", repository, f"{app_name}-{namespace}.yaml")
+
+    os.makedirs(os.path.dirname(rendered_manifest), exist_ok=True)
+
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        suffix=".yaml",
+        prefix=f"{app_name}-values-",
+        delete=False,
+    ) as result:
+        yaml.safe_dump(
+            values,
+            result,
+            sort_keys=False,
+            default_flow_style=None,
+            allow_unicode=True,
+        )
+        values_file = result.name
+
+    try:
+        template_exit = os.system(
+            f"helm template {app_name} {chart_path} -n {namespace} -f {values_file} >" f" {rendered_manifest}"
+        )
+        if template_exit != 0:
+            return template_exit
+
+        return os.system(f"helm upgrade --install {app_name} {chart_path} -n {namespace} -f {values_file}")
+    finally:
+        os.unlink(values_file)
 
 
-if __name__ == "__main__":
-    app()
+def install_app(request: InstallAppRequest) -> int:
+    tag = request.tag or "latest"
+    values_ref, _ = build_install_values(request, tag)
+    return execute_helm_commands(request.application, request.repository, request.namespace, values_ref)

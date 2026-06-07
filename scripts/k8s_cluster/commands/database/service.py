@@ -1,50 +1,28 @@
 import os
 import shlex
 
-import typer
-
-from cli_common import exit_on_failure, make_cli_app
-from repo_paths import REPO_ROOT
-
-app = make_cli_app()
+from k8s_cluster.commands.database.types import CreateDatabaseRequest
+from k8s_cluster.paths import REPO_ROOT
+from k8s_cluster.utils.env_files import read_env_file
+from k8s_cluster.utils.shell import execute_cli_command
 
 
-def read_env_file(env_file: str):
-    if not os.path.isfile(env_file):
-        raise FileNotFoundError(f"Environment file {env_file} does not exist.")
-
-    all_secrets = {}
-    with open(env_file) as secrets_file:
-        lines = secrets_file.readlines()
-        for line in lines:
-            key, value = line.split("=")
-            all_secrets[f"{key.upper()}"] = value.strip()
-
-    return all_secrets
+def quote_pg_identifier(name: str) -> str:
+    return '"' + name.replace('"', '""') + '"'
 
 
-def get_database_admin_credentials(namespace: str):
+def get_database_admin_credentials(namespace: str) -> dict:
     env_dir = os.path.join(REPO_ROOT, "resources", "vault", "_admin", "database", namespace)
     if not os.path.isdir(env_dir):
         raise FileNotFoundError(f"Environment directory {env_dir} does not exist.")
     return read_env_file(os.path.join(env_dir, ".env"))
 
 
-def get_database_credentials(repository: str, namespace: str):
+def get_database_credentials(repository: str, namespace: str) -> dict:
     env_dir = os.path.join(REPO_ROOT, "resources", "vault", repository, "database", namespace)
     if not os.path.isdir(env_dir):
         raise FileNotFoundError(f"Environment directory {env_dir} does not exist.")
-
     return read_env_file(os.path.join(env_dir, ".env"))
-
-
-def execute_cli_command(command: str):
-    print(f"Executing command: {command}")
-    return os.system(command)
-
-
-def quote_pg_identifier(name: str) -> str:
-    return '"' + name.replace('"', '""') + '"'
 
 
 def kubectl_exec_psql(namespace, admin_user, admin_password, sql, database=None):
@@ -109,11 +87,11 @@ def grant_database_privileges(
     )
 
 
-def main(repository: str, namespace: str) -> int:
-    print(f'Creating database for service "{repository}"')
+def create_database(request: CreateDatabaseRequest) -> int:
+    print(f'Creating database for service "{request.repository}"')
 
-    db_to_create_credentials = get_database_credentials(repository, namespace)
-    admin_credentials = get_database_admin_credentials(namespace)
+    db_to_create_credentials = get_database_credentials(request.repository, request.namespace)
+    admin_credentials = get_database_admin_credentials(request.namespace)
 
     admin_password = admin_credentials.get("PASSWORD")
     admin_user = admin_credentials.get("USER")
@@ -124,29 +102,12 @@ def main(repository: str, namespace: str) -> int:
         raise ValueError("Missing required database credentials (admin USER/PASSWORD, app NAME/USER).")
 
     print(f'Creating database "{db_name}" with owner "{app_user}" (if not exists)...')
-    create_database_if_missing(namespace, admin_user, admin_password, db_name, app_user)
+    create_database_if_missing(request.namespace, admin_user, admin_password, db_name, app_user)
 
     print(f'Granting privileges on "{db_name}" to "{app_user}"...')
-    grant_database_privileges(namespace, admin_user, admin_password, db_name, app_user)
+    grant_database_privileges(request.namespace, admin_user, admin_password, db_name, app_user)
 
-    print(f'Database "{db_name}" is ready in namespace "{namespace}".')
+    print(f'Database "{db_name}" is ready in namespace "{request.namespace}".')
     print(f"To connect, use: {db_to_create_credentials}")
     print("Re-run this script safely on existing databases to fix PG15+ public schema permissions.")
     return 0
-
-
-@app.command()
-def cli(
-    namespace: str = typer.Option(..., help="Kubernetes namespace (e.g. dev)"),
-    repository: str = typer.Option(..., help="App folder under apps/"),
-) -> None:
-    try:
-        exit_code = main(repository, namespace)
-    except (FileNotFoundError, ValueError) as error:
-        typer.echo(str(error), err=True)
-        raise typer.Exit(code=1) from error
-    exit_on_failure(exit_code, "")
-
-
-if __name__ == "__main__":
-    app()

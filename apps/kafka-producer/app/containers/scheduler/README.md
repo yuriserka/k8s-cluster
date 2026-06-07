@@ -31,7 +31,7 @@ Ensure the **API** (or another writer) has inserted outbox rows; the scheduler p
 
 ### Option B — Production-style image
 
-Production [`Dockerfile`](../Dockerfile) has no entrypoint/javaagent unless built via `publish_app` with `javaAgent`. Raw local build:
+Production [`Dockerfile`](../Dockerfile) has no entrypoint/javaagent unless built via `python -m k8s_cluster app publish` with `javaAgent`. Raw local build:
 
 ```bash
 ./gradlew :app:containers:scheduler:bootJar

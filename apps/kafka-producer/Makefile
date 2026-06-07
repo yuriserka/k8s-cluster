@@ -23,7 +23,7 @@ help:
 	@echo "  make docker-build-scheduler Build scheduler dev image locally"
 	@echo "  make docker-build-migrate Build migrate image locally"
 	@echo "  make migrate              Flyway against compose Postgres on localhost (start postgres first)"
-	@echo "  make pipeline             Run full cluster pipeline via scripts/pipeline_parser.py"
+	@echo "  make pipeline             Run full cluster pipeline via python -m k8s_cluster pipeline run"
 
 install:
 	$(GRADLE) clean assemble -x bootJar
@@ -55,4 +55,4 @@ migrate:
 	$(GRADLE) :app:core:flywayMigrate -Dflyway.configFiles=flyway.conf
 
 pipeline:
-	cd ../../scripts && python3 pipeline_parser.py kafka-producer
+	cd ../../scripts && PYTHONPATH=. python3 -m k8s_cluster pipeline run kafka-producer

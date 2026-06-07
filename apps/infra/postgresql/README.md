@@ -23,7 +23,7 @@ Port-forward (optional — for host-side `psql` or GUI only):
 minikube kubectl -- port-forward -n dev postgresql-0 5432:5432
 ```
 
-[`create_database.py`](../../../scripts/create_database.py) and pipeline migrations use **`kubectl exec` into `postgresql-0`** — no port-forward required.
+[`k8s_cluster database create`](../../../scripts/k8s_cluster/commands/database/service.py) and pipeline migrations use **`kubectl exec` into `postgresql-0`** — no port-forward required.
 
 ## Local Compose vs cluster
 
@@ -31,7 +31,7 @@ minikube kubectl -- port-forward -n dev postgresql-0 5432:5432
 |--|--|--|
 | Container | `k8s-cluster-postgres` on network `k8s-cluster-local` (see [`../compose.yaml`](../compose.yaml)) | Helm `postgresql-0` pod |
 | Default user | `ysdcr` / `ysdcr` | Admin: vault `_admin`; app: vault per repo |
-| Databases | `kafka-producer`, `kafka-worker` (worker via [`initdb`](../../kafka-worker/initdb/) on first volume init) | Created by `create_database.py` per app |
+| Databases | `kafka-producer`, `kafka-worker` (worker via [`initdb`](../../kafka-worker/initdb/) on first volume init) | Created by `database create` per app |
 | Migrations | Producer: `make migrate` (Gradle Flyway); worker: `make migrate` (Django) | Pipeline `dev-migrate` step |
 
 See [kafka-producer README](../../kafka-producer/README.md) and [kafka-worker README](../../kafka-worker/README.md) for compose quick starts.
@@ -44,7 +44,7 @@ Use the repo script from `scripts/` (creates the DB if missing, then always appl
 
 ```bash
 cd scripts
-python create_database.py --namespace dev --repository <app_name>
+python -m k8s_cluster database create --namespace dev --repository <app_name>
 ```
 
 Example for `kafka-worker`: creates database `kafka-worker` owned by `root` (from `resources/vault/kafka-worker/database/dev/.env`).
@@ -65,7 +65,7 @@ GRANT ALL ON SCHEMA public TO root;
 ALTER SCHEMA public OWNER TO root;
 ```
 
-Or re-run `python create_database.py --namespace dev --repository kafka-worker` to apply the same grants automatically.
+Or re-run `python -m k8s_cluster database create --namespace dev --repository kafka-worker` to apply the same grants automatically.
 
 Avoid `ALTER ROLE ... WITH SUPERUSER` unless you explicitly want full cluster admin for that user in dev.
 
@@ -79,4 +79,4 @@ password: example
 database: kafka-worker
 ```
 
-Migrations run as this user after `create_database.py` has been executed.
+Migrations run as this user after `database create` has been executed.

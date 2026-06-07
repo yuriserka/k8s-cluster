@@ -46,7 +46,7 @@ docker compose up -d --build --no-deps api scheduler
 | LocalStack auth token | `resources/vault/_admin/aws/dev/.env` |
 | Postgres (cluster apps) | `resources/vault/_admin/database/dev/.env` + per-app vault |
 
-See [scripts/install_infra.py](../../scripts/install_infra.py), [scripts/drop_infra.py](../../scripts/drop_infra.py), and [scripts/README.md](../../scripts/README.md).
+See [`k8s_cluster/commands/infra/`](../../scripts/k8s_cluster/commands/infra/) and [scripts/README.md](../../scripts/README.md).
 
 ## Teardown
 

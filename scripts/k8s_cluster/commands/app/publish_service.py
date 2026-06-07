@@ -3,16 +3,13 @@ import os
 import shlex
 import shutil
 import tempfile
-from typing import Optional
 
-import typer
 import yaml
 from dockerfile_parse import DockerfileParser
 
-from cli_common import exit_on_failure, make_cli_app
-from repo_paths import REPO_ROOT, resolve_path
-
-app = make_cli_app()
+from k8s_cluster.commands.app.types import PublishAppRequest
+from k8s_cluster.paths import REPO_ROOT, resolve_path
+from k8s_cluster.utils.env_files import read_env_file
 
 
 def run_docker_build(
@@ -22,11 +19,6 @@ def run_docker_build(
     use_minikube_docker: bool,
     build_args: dict | None = None,
 ) -> int:
-    """Build from build_context using a relative Dockerfile path.
-
-    Avoids passing WSL absolute paths to minikube image build / Docker Desktop,
-    which often fails with: lstat /home/<user>: no such file or directory
-    """
     dockerfile_rel = os.path.relpath(dockerfile_abs, build_context)
     if dockerfile_rel.startswith(".."):
         dockerfile_for_build = dockerfile_abs
@@ -41,32 +33,12 @@ def run_docker_build(
     )
     if use_minikube_docker:
         inner = f'eval "$(minikube docker-env --shell bash)" && {inner}'
-    # os.system uses /bin/sh (dash); default minikube docker-env is fish ("set -gx").
     cmd = f"bash -c {shlex.quote(inner)}"
     print(f"Executing command: {cmd}")
     return os.system(cmd)
 
 
-def read_env_file(env_file: str):
-    if not os.path.isfile(env_file):
-        raise FileNotFoundError(f"Environment file {env_file} does not exist.")
-
-    all_secrets = {}
-    with open(env_file) as secrets_file:
-        lines = secrets_file.readlines()
-        for line in lines:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            line = line.split("#", 1)[0]
-            key, value = line.split("=", maxsplit=1)
-            all_secrets[f"{key.upper()}"] = value.strip()
-
-    return all_secrets
-
-
 def _insert_lines_before_instruction(dfp: DockerfileParser, instruction: str, lines: str) -> None:
-    """Insert lines before the first Dockerfile instruction (handles multi-line CMD)."""
     prefix = f"{instruction.upper()} "
     content_lines = dfp.content.splitlines(keepends=True)
     for index, line in enumerate(content_lines):
@@ -240,22 +212,16 @@ def handle_instrumentation(
     return dockerfile_abs
 
 
-def main(
-    repository: str,
-    dockerfile_path: str,
-    namespace: str,
-    intra_cluster: bool,
-    path: str,
-    tag: str = None,
-    build_args: dict | None = None,
-) -> int:
-    tag = tag or "latest"
-    image = f"{repository}-{namespace}:{tag}"
-    build_context = resolve_path(path)
-    original_dockerfile = os.path.join(build_context, dockerfile_path)
+def publish_app(request: PublishAppRequest) -> int:
+    tag = request.tag or "latest"
+    image = f"{request.repository}-{request.namespace}:{tag}"
+    build_context = resolve_path(request.app_path)
+    original_dockerfile = os.path.join(build_context, request.dockerfile)
     instrumented_dockerfile = None
     try:
-        dockerfile_abs = handle_instrumentation(repository, namespace, dockerfile_path, build_context)
+        dockerfile_abs = handle_instrumentation(
+            request.repository, request.namespace, request.dockerfile, build_context
+        )
         instrumented = dockerfile_abs != original_dockerfile
         if instrumented:
             instrumented_dockerfile = dockerfile_abs
@@ -264,45 +230,13 @@ def main(
             image,
             dockerfile_abs,
             build_context,
-            use_minikube_docker=intra_cluster,
-            build_args=build_args,
+            use_minikube_docker=request.use_minikube_docker,
+            build_args=request.build_args,
         )
         if build_result != 0:
-            target = "minikube docker" if intra_cluster else "local docker"
+            target = "minikube docker" if request.use_minikube_docker else "local docker"
             print(f"Failed to build image {image} using {target}.")
         return build_result
     finally:
         if instrumented_dockerfile and os.path.isfile(instrumented_dockerfile):
             os.unlink(instrumented_dockerfile)
-
-
-@app.command()
-def cli(
-    repository: str = typer.Option(..., help="Image/repository name (e.g. kafka-worker-api)"),
-    dockerfile: str = typer.Option(..., help="Dockerfile path relative to --app-path"),
-    app_path: str = typer.Option(..., help="Build context directory"),
-    namespace: str = typer.Option(..., help="Namespace / environment (e.g. dev)"),
-    tag: Optional[str] = typer.Option(None, help="Image tag (default: latest)"),
-    use_minikube_docker: bool = typer.Option(
-        False,
-        help="Build against minikube Docker daemon (eval minikube docker-env)",
-    ),
-    build_args: Optional[str] = typer.Option(
-        None, help='JSON object of Docker build-args (e.g. \'{"CONTAINER":"api"}\')'
-    ),
-) -> None:
-    parsed_build_args = json.loads(build_args) if build_args else None
-    exit_code = main(
-        repository,
-        dockerfile,
-        namespace,
-        use_minikube_docker,
-        app_path,
-        tag,
-        parsed_build_args,
-    )
-    exit_on_failure(exit_code, f"Failed to publish app with repository: {repository}")
-
-
-if __name__ == "__main__":
-    app()

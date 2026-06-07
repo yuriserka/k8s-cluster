@@ -1,7 +1,7 @@
 # Shared local dev infra: postgres, kafka, localstack on network k8s-cluster-local.
 # Start once from this directory:
 #   docker compose up -d
-# Or: cd scripts && python install_infra.py --mode compose
+# Or: cd scripts && python -m k8s_cluster infra install --mode compose
 
 x-aws-vault-env-file: &aws-vault-env-file
   ../../resources/vault/_admin/aws/dev/.env

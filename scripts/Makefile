@@ -3,6 +3,7 @@
 VENV := .venv
 PYTHON := $(VENV)/bin/python
 PIP := $(VENV)/bin/pip
+export PYTHONPATH := $(CURDIR)
 
 REPO_ROOT := $(abspath ..)
 APPS_DIR := $(REPO_ROOT)/apps
@@ -23,7 +24,7 @@ ifndef REPOSITORY
   REPOSITORY := $(firstword $(filter $(REPOSITORIES),$(filter-out deploy-app drop-app,$(MAKECMDGOALS))))
 endif
 
-.PHONY: help venv install install-quiet lint format check deploy-app drop-app setup-infra drop-infra print-repositories
+.PHONY: help venv install install-quiet lint format check test deploy-app drop-app setup-infra drop-infra print-repositories
 
 help:
 	@echo "scripts targets:"
@@ -31,8 +32,10 @@ help:
 	@echo "  make install              pip install requirements.txt + requirements_dev.txt"
 	@echo "  make lint                 black --check + flake8"
 	@echo "  make format               Apply black to scripts/"
-	@echo "  make check                lint (no tests in scripts today)"
+	@echo "  make check                lint + unit tests"
+	@echo "  make test                 run unittest discover"
 	@echo "  make deploy-app <repo>    Run full pipeline (e.g. make deploy-app kafka-worker)"
+	@echo "  CLI: python -m k8s_cluster --help"
 	@echo "  make drop-app <repo>      Uninstall app Helm releases (e.g. make drop-app kafka-worker)"
 	@echo "  make setup-infra          Install infra (cluster default; MODE=compose for Compose)"
 	@echo "    Optional: MODE=compose WITH_KAFKA_UI=1"
@@ -63,7 +66,10 @@ lint: install
 format: install
 	$(PYTHON) -m black .
 
-check: lint
+check: lint test
+
+test: install-quiet
+	$(PYTHON) -m unittest discover -s tests -p 'test_*.py'
 
 print-repositories:
 	@printf '%s\n' $(REPOSITORIES)
@@ -79,7 +85,7 @@ ifneq ($(filter $(REPOSITORY),$(REPOSITORIES)),$(REPOSITORY))
 	@printf '  %s\n' $(REPOSITORIES)
 	$(error Unknown repository "$(REPOSITORY)")
 endif
-	$(PYTHON) pipeline_parser.py $(REPOSITORY)
+	$(PYTHON) -m k8s_cluster pipeline run $(REPOSITORY)
 
 drop-app: install-quiet
 ifeq ($(REPOSITORY),)
@@ -92,15 +98,15 @@ ifneq ($(filter $(REPOSITORY),$(REPOSITORIES)),$(REPOSITORY))
 	@printf '  %s\n' $(REPOSITORIES)
 	$(error Unknown repository "$(REPOSITORY)")
 endif
-	$(PYTHON) drop_app.py --repository $(REPOSITORY) --namespace $(NAMESPACE)
+	$(PYTHON) -m k8s_cluster app drop --repository $(REPOSITORY) --namespace $(NAMESPACE)
 
 setup-infra: install-quiet
-	$(PYTHON) install_infra.py \
+	$(PYTHON) -m k8s_cluster infra install \
 		$(if $(MODE),--mode $(MODE),) \
 		$(if $(WITH_KAFKA_UI),--with-kafka-ui,)
 
 drop-infra: install-quiet
-	$(PYTHON) drop_infra.py \
+	$(PYTHON) -m k8s_cluster infra drop \
 		--namespace $(NAMESPACE) \
 		$(if $(MODE),--mode $(MODE),) \
 		$(if $(VOLUMES),--volumes,) \

@@ -29,7 +29,7 @@ API: `http://localhost:8080`
 
 ### Option B — Production-style image (pre-built JAR)
 
-Production [`Dockerfile`](../Dockerfile) has **no** `docker-entrypoint.sh` or javaagent unless the image was built via [`publish_app.py`](../../../../../scripts/publish_app.py) with `javaAgent` in resources. For a raw local build:
+Production [`Dockerfile`](../Dockerfile) has **no** `docker-entrypoint.sh` or javaagent unless the image was built via [`app publish`](../../../../../scripts/k8s_cluster/commands/app/publish_service.py) with `javaAgent` in resources. For a raw local build:
 
 ```bash
 ./gradlew :app:containers:api:bootJar

@@ -56,19 +56,19 @@ cd scripts
 make deploy-app kafka-producer   # or kafka-worker
 ```
 
-This runs the full `.pipeline`: lint, test, publish images, in-cluster migrate (`create_database.py` + migration job), and Helm deploy. **No port-forward or manual `create_database.py` is required** when using the full pipeline.
+This runs the full `.pipeline`: lint, test, publish images, in-cluster migrate (`database create` + migration job), and Helm deploy. **No port-forward or manual `database create` is required** when using the full pipeline.
 
 Manual equivalent:
 
 ```bash
 cd scripts
-python pipeline_parser.py <app_name>
+python -m k8s_cluster pipeline run <app_name>
 ```
 
-To create a database manually (e.g. before a partial run), `create_database.py` execs into `postgresql-0` in-cluster — no port-forward needed:
+To create a database manually (e.g. before a partial run), `database create` execs into `postgresql-0` in-cluster — no port-forward needed:
 
 ```bash
-python create_database.py --namespace dev --repository <app_name>
+python -m k8s_cluster database create --namespace dev --repository <app_name>
 ```
 
 ## Testing deployed apps
@@ -94,7 +94,7 @@ cd scripts
 make drop-app kafka-worker   # or kafka-producer
 ```
 
-Or: `python drop_app.py --repository <app_name> --namespace dev`
+Or: `python -m k8s_cluster app drop --repository <app_name> --namespace dev`
 
 Drop shared infra (after apps):
 
