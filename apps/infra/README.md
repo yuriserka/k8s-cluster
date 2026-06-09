@@ -13,6 +13,8 @@ Shared infrastructure for local Compose and minikube cluster dev.
 
 Apps connect on network **`k8s-cluster-local`** (Compose) or Kubernetes Service DNS (cluster).
 
+**LocalStack Web App:** browse resources at [app.localstack.cloud](https://app.localstack.cloud/inst/default/resources) — cluster mode needs `port-forward` on `4566`; see [localstack/README.md](localstack/README.md#localstack-web-app-applocalstackcloud).
+
 ## Setup
 
 **Cluster (minikube):**
