@@ -1,22 +1,30 @@
 steps:
+  clone-app:
+    kind: clone
+
   env:
+    depends_on: clone-app
     cmd:
       - "python3 -m venv .venv"
 
   install:
+    depends_on: env
     cmd:
       - ". .venv/bin/activate && pip install -r requirements.txt"
       - ". .venv/bin/activate && pip install -r requirements_dev.txt"
 
   lint:
+    depends_on: install
     cmd:
       - ". .venv/bin/activate && python code_checks.py"
 
   test:
+    depends_on: lint
     cmd:
       - ". .venv/bin/activate && python run_tests.py"
 
   dev-publish-api:
+    depends_on: test
     kind: publish
     repo: kafka-worker-api
     dockerfile: kafkaworker/containers/Dockerfile
@@ -24,16 +32,8 @@ steps:
       CONTAINER: api
     env: dev
 
-  dev-migrate:
-    kind: database_migration
-    env: dev
-    repository: kafka-worker
-    image_repo: kafka-worker-api
-    cmd:
-      - python manage.py showmigrations
-      - python manage.py migrate
-
   dev-publish-kafka-worker:
+    depends_on: test
     kind: publish
     repo: kafka-worker-example-topic-consumer
     dockerfile: kafkaworker/containers/Dockerfile
@@ -42,6 +42,7 @@ steps:
     env: dev
 
   dev-publish-scheduler:
+    depends_on: test
     kind: publish
     repo: kafka-worker-scheduler
     dockerfile: kafkaworker/containers/Dockerfile
@@ -49,7 +50,18 @@ steps:
       CONTAINER: scheduler
     env: dev
 
+  dev-migrate:
+    depends_on: dev-publish-api
+    kind: database_migration
+    env: dev
+    repository: kafka-worker
+    image_repo: kafka-worker-api
+    cmd:
+      - python manage.py showmigrations
+      - python manage.py migrate
+
   dev-deploy-api:
+    depends_on: dev-migrate
     kind: install
     repo: kafka-worker
     application: kafka-worker-api
@@ -57,6 +69,7 @@ steps:
     env: dev
 
   dev-deploy-kafka-worker:
+    depends_on: dev-migrate
     kind: install
     repo: kafka-worker
     application: kafka-worker-example-topic-consumer
@@ -64,6 +77,7 @@ steps:
     env: dev
 
   dev-deploy-scheduler:
+    depends_on: dev-migrate
     kind: install
     repo: kafka-worker
     application: kafka-worker-scheduler

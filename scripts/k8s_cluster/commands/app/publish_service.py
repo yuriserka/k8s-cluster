@@ -1,8 +1,10 @@
 import json
 import os
+import re
 import shlex
 import shutil
 import tempfile
+import threading
 
 import yaml
 from dockerfile_parse import DockerfileParser
@@ -10,6 +12,8 @@ from dockerfile_parse import DockerfileParser
 from k8s_cluster.commands.app.types import PublishAppRequest
 from k8s_cluster.paths import REPO_ROOT, resolve_path
 from k8s_cluster.utils.env_files import read_env_file
+
+_INSTRUMENTATION_LOCK = threading.Lock()
 
 
 def run_docker_build(
@@ -39,28 +43,55 @@ def run_docker_build(
 
 
 def _insert_lines_before_instruction(dfp: DockerfileParser, instruction: str, lines: str) -> None:
-    prefix = f"{instruction.upper()} "
-    content_lines = dfp.content.splitlines(keepends=True)
+    dfp.content = _insert_before_last_instruction(dfp.content, instruction, lines)
+
+
+def _insert_before_last_instruction(content: str, instruction: str, lines: str) -> str:
+    instruction_upper = instruction.upper()
+    content_lines = content.splitlines(keepends=True)
+    match_index = None
     for index, line in enumerate(content_lines):
-        if line.lstrip().upper().startswith(prefix):
-            for insert_line in reversed(lines.splitlines(keepends=True)):
-                content_lines.insert(index, insert_line)
-            dfp.content = "".join(content_lines)
-            return
-    raise RuntimeError(f"Cannot find {instruction} instruction in Dockerfile")
+        stripped = line.lstrip().upper()
+        if stripped == instruction_upper or stripped.startswith(f"{instruction_upper} "):
+            match_index = index
+    if match_index is None:
+        raise RuntimeError(f"Cannot find {instruction} instruction in Dockerfile")
+
+    for insert_line in reversed(lines.splitlines(keepends=True)):
+        content_lines.insert(match_index, insert_line)
+    return "".join(content_lines)
+
+
+def _write_text_atomically(path: str, content: str) -> None:
+    directory = os.path.dirname(path) or "."
+    fd, temp_path = tempfile.mkstemp(dir=directory, prefix=".publish-write-", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as handle:
+            handle.write(content)
+        os.replace(temp_path, path)
+    except Exception:
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
+        raise
+
+
+def _make_instrumented_dockerfile_path(repository: str) -> str:
+    safe_repository = re.sub(r"[^A-Za-z0-9._-]+", "-", repository)
+    fd, updated_dockerfile_path = tempfile.mkstemp(
+        suffix=".Dockerfile.instrumented",
+        prefix=f"publish-{safe_repository}-",
+    )
+    os.close(fd)
+    return updated_dockerfile_path
 
 
 def add_otel_to_java_dockerfile(
     dockerfile_path: str, java_agent_version: str, repository: str, enabled: bool, namespace: str, grafana_secrets: dict
 ) -> str:
-    fd, updated_dockerfile_path = tempfile.mkstemp(
-        suffix=".Dockerfile.instrumented",
-        prefix="publish-",
-    )
-    os.close(fd)
+    updated_dockerfile_path = _make_instrumented_dockerfile_path(repository)
     shutil.copy(dockerfile_path, updated_dockerfile_path)
 
-    with open(updated_dockerfile_path, "r+") as dockerfile:
+    with open(updated_dockerfile_path, "r") as dockerfile:
         dfp = DockerfileParser()
         dfp.content = dockerfile.read()
 
@@ -98,8 +129,7 @@ def add_otel_to_java_dockerfile(
             ]
         )
 
-        with open(updated_dockerfile_path, "w") as updated_dockerfile:
-            updated_dockerfile.write(dfp.content)
+        _write_text_atomically(updated_dockerfile_path, dfp.content)
 
     return updated_dockerfile_path
 
@@ -127,41 +157,33 @@ def add_otel_to_python_dockerfile(
     namespace: str,
     grafana_secrets: dict,
 ) -> str:
-    fd, updated_dockerfile_path = tempfile.mkstemp(
-        suffix=".Dockerfile.instrumented",
-        prefix="publish-",
-    )
-    os.close(fd)
+    updated_dockerfile_path = _make_instrumented_dockerfile_path(repository)
     shutil.copy(dockerfile_path, updated_dockerfile_path)
 
-    with open(updated_dockerfile_path, "r+") as dockerfile:
+    with open(updated_dockerfile_path, "r") as dockerfile:
         content = dockerfile.read()
-        content = _inject_python_otel_pip_install(content, distro_version)
+    content = _inject_python_otel_pip_install(content, distro_version)
 
-        if enabled:
-            dfp = DockerfileParser()
-            dfp.content = content
-            otel_lines = (
-                f'ENV OTEL_RESOURCE_ATTRIBUTES="service.name={repository},'
-                f'service.namespace={namespace},deployment.environment={namespace}"\n'
-                f'ENV OTEL_EXPORTER_OTLP_ENDPOINT={grafana_secrets.get("OTEL_EXPORTER_OTLP_ENDPOINT")}\n'
-                f'ENV OTEL_EXPORTER_OTLP_PROTOCOL={grafana_secrets.get("OTEL_EXPORTER_OTLP_PROTOCOL")}\n'
-                f'ENV OTEL_EXPORTER_OTLP_HEADERS={grafana_secrets.get("OTEL_EXPORTER_OTLP_HEADERS")}\n'
-                f'ENV OTEL_TRACES_EXPORTER={grafana_secrets.get("OTEL_TRACES_EXPORTER", "otlp")}\n'
-                f'ENV OTEL_METRICS_EXPORTER={grafana_secrets.get("OTEL_METRICS_EXPORTER", "otlp")}\n'
-                f'ENV OTEL_LOGS_EXPORTER={grafana_secrets.get("OTEL_LOGS_EXPORTER", "otlp")}\n'
-            )
-            metric_interval = grafana_secrets.get("OTEL_METRIC_EXPORT_INTERVAL")
-            metric_timeout = grafana_secrets.get("OTEL_METRIC_EXPORT_TIMEOUT")
-            if metric_interval:
-                otel_lines += f"ENV OTEL_METRIC_EXPORT_INTERVAL={metric_interval}\n"
-            if metric_timeout:
-                otel_lines += f"ENV OTEL_METRIC_EXPORT_TIMEOUT={metric_timeout}\n"
-            _insert_lines_before_instruction(dfp, "ENTRYPOINT", otel_lines)
-            content = dfp.content
+    if enabled:
+        otel_lines = (
+            f'ENV OTEL_RESOURCE_ATTRIBUTES="service.name={repository},'
+            f'service.namespace={namespace},deployment.environment={namespace}"\n'
+            f'ENV OTEL_EXPORTER_OTLP_ENDPOINT={grafana_secrets.get("OTEL_EXPORTER_OTLP_ENDPOINT")}\n'
+            f'ENV OTEL_EXPORTER_OTLP_PROTOCOL={grafana_secrets.get("OTEL_EXPORTER_OTLP_PROTOCOL")}\n'
+            f'ENV OTEL_EXPORTER_OTLP_HEADERS={grafana_secrets.get("OTEL_EXPORTER_OTLP_HEADERS")}\n'
+            f'ENV OTEL_TRACES_EXPORTER={grafana_secrets.get("OTEL_TRACES_EXPORTER", "otlp")}\n'
+            f'ENV OTEL_METRICS_EXPORTER={grafana_secrets.get("OTEL_METRICS_EXPORTER", "otlp")}\n'
+            f'ENV OTEL_LOGS_EXPORTER={grafana_secrets.get("OTEL_LOGS_EXPORTER", "otlp")}\n'
+        )
+        metric_interval = grafana_secrets.get("OTEL_METRIC_EXPORT_INTERVAL")
+        metric_timeout = grafana_secrets.get("OTEL_METRIC_EXPORT_TIMEOUT")
+        if metric_interval:
+            otel_lines += f"ENV OTEL_METRIC_EXPORT_INTERVAL={metric_interval}\n"
+        if metric_timeout:
+            otel_lines += f"ENV OTEL_METRIC_EXPORT_TIMEOUT={metric_timeout}\n"
+        content = _insert_before_last_instruction(content, "ENTRYPOINT", otel_lines)
 
-        with open(updated_dockerfile_path, "w") as updated_dockerfile:
-            updated_dockerfile.write(content)
+    _write_text_atomically(updated_dockerfile_path, content)
 
     return updated_dockerfile_path
 
@@ -183,31 +205,32 @@ def handle_instrumentation(
     is_enabled = instrumentation.get("enabled", False)
     dockerfile_abs = os.path.join(build_context, dockerfile_path)
 
-    if "javaAgent" in instrumentation:
-        java_agent = instrumentation.get("javaAgent", {})
-        java_agent_version = java_agent.get("version", "latest")
-        dockerfile_abs = add_otel_to_java_dockerfile(
-            dockerfile_abs,
-            java_agent_version,
-            repository,
-            is_enabled,
-            namespace,
-            grafana_secrets,
-        )
-        original_dockerfile = os.path.join(build_context, "Dockerfile")
-        if os.path.isfile(original_dockerfile):
-            os.system(f"rm -f {original_dockerfile}")
-    elif "pythonAgent" in instrumentation:
-        python_agent = instrumentation.get("pythonAgent", {})
-        distro_version = python_agent.get("version", "latest")
-        dockerfile_abs = add_otel_to_python_dockerfile(
-            dockerfile_abs,
-            distro_version,
-            repository,
-            is_enabled,
-            namespace,
-            grafana_secrets,
-        )
+    with _INSTRUMENTATION_LOCK:
+        if "javaAgent" in instrumentation:
+            java_agent = instrumentation.get("javaAgent", {})
+            java_agent_version = java_agent.get("version", "latest")
+            dockerfile_abs = add_otel_to_java_dockerfile(
+                dockerfile_abs,
+                java_agent_version,
+                repository,
+                is_enabled,
+                namespace,
+                grafana_secrets,
+            )
+            original_dockerfile = os.path.join(build_context, "Dockerfile")
+            if os.path.isfile(original_dockerfile):
+                os.system(f"rm -f {original_dockerfile}")
+        elif "pythonAgent" in instrumentation:
+            python_agent = instrumentation.get("pythonAgent", {})
+            distro_version = python_agent.get("version", "latest")
+            dockerfile_abs = add_otel_to_python_dockerfile(
+                dockerfile_abs,
+                distro_version,
+                repository,
+                is_enabled,
+                namespace,
+                grafana_secrets,
+            )
 
     return dockerfile_abs
 

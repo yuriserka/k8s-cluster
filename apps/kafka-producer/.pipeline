@@ -1,27 +1,36 @@
 steps:
+  clone-app:
+    kind: clone
+
   install:
+    depends_on: clone-app
     cmd:
       - "./gradlew clean assemble -x bootJar"
 
   lint:
+    depends_on: install
     cmd:
       - "./gradlew codeChecks"
 
   test:
+    depends_on: lint
     cmd:
       - "./gradlew test -x bootJar"
 
   build:
+    depends_on: test
     cmd:
       - "./gradlew bootJar"
 
   dev-publish-migrate:
+    depends_on: build
     kind: publish
     repo: kafka-producer-migrate
     dockerfile: app/containers/migrate/Dockerfile
     env: dev
 
   dev-migrate:
+    depends_on: dev-publish-migrate
     kind: database_migration
     env: dev
     repository: kafka-producer
@@ -30,6 +39,7 @@ steps:
       - /docker-entrypoint.sh migrate
 
   dev-publish-api:
+    depends_on: dev-migrate
     kind: publish
     repo: kafka-producer-api
     dockerfile: app/containers/Dockerfile
@@ -38,6 +48,7 @@ steps:
     env: dev
 
   dev-publish-scheduler:
+    depends_on: dev-migrate
     kind: publish
     repo: kafka-producer-scheduler
     dockerfile: app/containers/Dockerfile
@@ -46,6 +57,7 @@ steps:
     env: dev
 
   dev-deploy-api:
+    depends_on: dev-publish-api
     kind: install
     repo: kafka-producer
     application: kafka-producer-api
@@ -53,6 +65,7 @@ steps:
     env: dev
 
   dev-deploy-scheduler:
+    depends_on: dev-publish-scheduler
     kind: install
     repo: kafka-producer
     application: kafka-producer-scheduler

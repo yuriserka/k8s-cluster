@@ -1,7 +1,8 @@
 import unittest
 
-from k8s_cluster.commands.pipeline.loader import parse_step_args
+from k8s_cluster.commands.pipeline.loader import parse_step_args, strip_step_metadata
 from k8s_cluster.commands.pipeline.types import (
+    CloneStepArgs,
     CredentialsStepArgs,
     DatabaseMigrationStepArgs,
     InstallStepArgs,
@@ -10,6 +11,15 @@ from k8s_cluster.commands.pipeline.types import (
 
 
 class TestParseStepArgs(unittest.TestCase):
+    def test_clone(self):
+        args = parse_step_args("clone", {"kind": "clone"})
+        self.assertIsInstance(args, CloneStepArgs)
+
+    def test_strip_step_metadata(self):
+        stripped = strip_step_metadata({"kind": "publish", "depends_on": "test", "repo": "x", "env": "dev"})
+        self.assertNotIn("depends_on", stripped)
+        self.assertEqual(stripped["repo"], "x")
+
     def test_database_migration(self):
         args = parse_step_args(
             "database_migration",

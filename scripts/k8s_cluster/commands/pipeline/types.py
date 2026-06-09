@@ -1,6 +1,10 @@
 from typing import NamedTuple
 
 
+class CloneStepArgs(NamedTuple):
+    kind: str
+
+
 class ServiceArgs(NamedTuple):
     image: str
     image_env_vars: dict

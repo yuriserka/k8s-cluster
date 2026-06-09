@@ -79,8 +79,8 @@ spec:
   template:
     metadata:
       annotations:
-        pipeline_deployed_at: "2026-06-09T00:34:16.003920+00:00"
-        pipeline_id: 74a0bcb9-627e-4987-a937-b87dc2b78e60
+        pipeline_deployed_at: "2026-06-09T01:33:51.840079+00:00"
+        pipeline_id: 77d14d33-49cd-4213-a91c-38c51ec6f296
       labels:
         helm.sh/chart: dev-0.1.0
         app.kubernetes.io/name: kafka-producer-scheduler

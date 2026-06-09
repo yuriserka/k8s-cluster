@@ -47,8 +47,30 @@ def log_service_start(index: int, total: int, name: str, summary_lines: list[str
     _print_block(lines)
 
 
-def log_step_start(index: int, total: int, step_name: str, kind: str, summary_lines: list[str]) -> None:
-    header = f"STEP {index}/{total}: {step_name}  |  kind: {kind}"
+def log_wave_start(wave_index: int, step_names: list[str]) -> None:
+    parallel = "parallel" if len(step_names) > 1 else "sequential"
+    names = ", ".join(step_names)
+    _print_block(
+        [
+            SEPARATOR_MAJOR,
+            f"WAVE {wave_index + 1}: {len(step_names)} step(s) ({parallel})",
+            f"{DETAIL_PREFIX}{names}",
+            SEPARATOR_MAJOR,
+        ]
+    )
+
+
+def log_step_start(
+    step_index: int,
+    total: int,
+    step_name: str,
+    kind: str,
+    summary_lines: list[str],
+    *,
+    wave_index: int | None = None,
+) -> None:
+    wave_part = f"  |  wave: {wave_index + 1}" if wave_index is not None else ""
+    header = f"STEP {step_index}/{total}: {step_name}  |  kind: {kind}{wave_part}"
     lines = [SEPARATOR_MAJOR, header]
     for summary_line in summary_lines:
         lines.append(f"{DETAIL_PREFIX}{summary_line}")
@@ -60,15 +82,24 @@ def log_step_detail(message: str) -> None:
     print(f"{DETAIL_PREFIX}{message}")
 
 
-def log_step_end(index: int, total: int, step_name: str, exit_code: int, elapsed_seconds: float) -> None:
+def log_step_end(
+    index: int,
+    total: int,
+    step_name: str,
+    exit_code: int,
+    elapsed_seconds: float,
+    *,
+    wave_index: int | None = None,
+) -> None:
     if exit_code == 0:
         status = f"finished in {elapsed_seconds:.1f}s  (exit 0)"
     else:
         status = f"FAILED in {elapsed_seconds:.1f}s  (exit {exit_code})"
+    wave_part = f"  |  wave: {wave_index + 1}" if wave_index is not None else ""
     _print_block(
         [
             SEPARATOR_MINOR,
-            f"STEP {index}/{total}: {step_name}  {status}",
+            f"STEP {index}/{total}: {step_name}{wave_part}  {status}",
             SEPARATOR_MINOR,
         ]
     )
@@ -91,6 +122,9 @@ def summarize_step(step_name: str, step_args: dict) -> list[str]:
         if cmds:
             lines.append(f"first: {_truncate(cmds[0])}")
         return lines
+
+    if kind == "clone":
+        return ["action: rsync app source into pipeline work directory"]
 
     if kind == "publish":
         repo = step_args.get("repo", "")

@@ -59,8 +59,8 @@ spec:
   template:
     metadata:
       annotations:
-        pipeline_deployed_at: "2026-06-09T00:27:52.080729+00:00"
-        pipeline_id: fdee8e62-ae86-448a-98d7-0d3e448a2c73
+        pipeline_deployed_at: "2026-06-09T01:28:58.409244+00:00"
+        pipeline_id: 883ea3cf-ce6d-42c7-a6f5-321b91d46793
       labels:
         helm.sh/chart: dev-0.1.0
         app.kubernetes.io/name: kafka-worker-example-topic-consumer

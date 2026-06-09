@@ -1,12 +1,17 @@
 import yaml
 
 from k8s_cluster.commands.pipeline.types import (
+    CloneStepArgs,
     CredentialsStepArgs,
     DatabaseMigrationStepArgs,
     InstallStepArgs,
     PublishStepArgs,
     ServiceArgs,
 )
+
+
+def strip_step_metadata(step_args: dict) -> dict:
+    return {key: value for key, value in step_args.items() if key != "depends_on"}
 
 
 def load_pipeline_file(file_path: str) -> dict:
@@ -19,6 +24,9 @@ def parse_service_args(service_args: dict) -> ServiceArgs:
 
 
 def parse_step_args(kind: str, step_args: dict):
+    step_args = strip_step_metadata(step_args)
+    if kind == "clone":
+        return CloneStepArgs(**step_args)
     if kind == "database_migration":
         return DatabaseMigrationStepArgs(**step_args)
     if kind == "credentials":

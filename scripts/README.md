@@ -338,7 +338,44 @@ print(json.dumps(get_secrets_for_app('kafka-worker', 'dev', ['aws']), indent=2))
 
 ### Pipeline log output
 
-`pipeline run` prints a header/footer around each step (`STEP i/N`, kind, key fields, duration, exit code) so output from one step is visually separated from the next. Optional `services:` blocks get a similar `SERVICE i/N` header.
+`pipeline run` prints a **WAVE** header (steps in the wave, parallel vs sequential) then per-step headers (`STEP i/N`, kind, wave, duration, exit code). Optional `services:` blocks get a similar `SERVICE i/N` header.
+
+### Pipeline `depends_on` and parallel waves
+
+Steps in `.pipeline` form a **dependency tree** via `depends_on`:
+
+- Every step except the root **`clone-app`** step must define `depends_on` (parent step name).
+- Steps with the **same parent** are **siblings** and run **in parallel** once the parent finishes.
+- **Fail-fast:** if any step in a wave fails, the next wave is not started (in-flight siblings in the same wave still finish).
+
+Example (kafka-worker after `test`):
+
+```yaml
+  dev-publish-api:
+    depends_on: test
+    kind: publish
+    ...
+  dev-publish-scheduler:
+    depends_on: test
+    kind: publish
+    ...
+```
+
+Both publish steps run in the same wave.
+
+**Root step — `kind: clone`**
+
+Every pipeline defines `clone-app` with `kind: clone` (no `depends_on` needed — it is always the root). This replaces the hardcoded rsync into `tmp-<repo>-pipeline/`; wave 0 always runs clone before other steps.
+
+```yaml
+  clone-app:
+    kind: clone
+  env:
+    depends_on: clone-app
+    cmd: [...]
+```
+
+Do not parallelize shell steps that share the same venv or mutate the same files — only independent work (e.g. multiple `publish` / `install` steps) should be siblings.
 
 ## Pipeline step kinds
 
@@ -346,6 +383,7 @@ Defined in each app's `apps/<repo>/.pipeline`:
 
 | `kind` | Handler behavior |
 |--------|------------------|
+| `clone` | Rsync app source into `tmp-<repo>-pipeline/` (root step, wave 0) |
 | *(none)* | Runs shell `cmd` list in the temp pipeline directory |
 | *(none)* `test` + minikube docker-env | Prepends `DOCKER_HOST=unix:///var/run/docker.sock` so Testcontainers use Docker Desktop |
 | `credentials` | Writes vault secrets to `output_file` |
