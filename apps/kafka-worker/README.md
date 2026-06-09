@@ -37,11 +37,11 @@ Or from `scripts/`: `make setup-infra MODE=compose`
 docker compose up -d --build --no-deps api scheduler example-topic-consumer
 ```
 
-| Service | Host port |
-|---------|-----------|
-| API | http://localhost:8000 |
-| Scheduler | port 8006 |
-| Consumer | port 8005 |
+| Service | Host port (Compose) | Cluster (`dev`) |
+|---------|---------------------|-----------------|
+| API | http://localhost:8000 | `kubectl port-forward -n dev deployment/kafka-worker-api-dev 8000:8000` |
+| Scheduler | port 8006 (placeholder) | No Service — use `kubectl logs -n dev deployment/kafka-worker-scheduler-dev` |
+| Consumer | port 8005 (placeholder) | No Service — use `kubectl logs -n dev deployment/kafka-worker-example-topic-consumer-dev` |
 | Postgres | localhost:5432 (database `kafka-worker`; also `kafka-producer` if that stack started Postgres first) |
 | Kafka | localhost:9092 |
 | LocalStack | localhost:4566 |
@@ -59,7 +59,7 @@ Both apps share network **`k8s-cluster-local`** and fixed container names. Start
 | File | Used by |
 |------|---------|
 | [`resources/vault/_admin/grafana/dev/.env`](../resources/vault/_admin/grafana/dev/.env) | API, scheduler, consumer (OTLP) |
-| [`resources/vault/_admin/aws/dev/.env`](../resources/vault/_admin/aws/dev/.env) | Infra LocalStack (`LOCALSTACK_AUTH_TOKEN`) |
+| [`resources/vault/_admin/aws/dev/.env`](../resources/vault/_admin/aws/dev/.env) | Infra LocalStack token + shared `AWS_*` client creds (API/consumer via `vaultShared: [aws]`) |
 
 Copy from the matching `.env.example` files before first run.
 

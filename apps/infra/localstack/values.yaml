@@ -1,8 +1,8 @@
 fullnameOverride: localstack
 
 image:
-  repository: localstack/localstack
-  tag: latest
+  repository: localstack/localstack-pro
+  tag: "2026.05.2"
   pullPolicy: IfNotPresent
 
 debug: false

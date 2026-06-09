@@ -69,7 +69,7 @@ services:
 
   localstack:
     container_name: k8s-cluster-localstack
-    image: localstack/localstack
+    image: localstack/localstack-pro:2026.05.2
     ports:
       - "127.0.0.1:4566:4566"
       - "127.0.0.1:4510-4559:4510-4559"

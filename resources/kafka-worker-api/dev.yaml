@@ -1,3 +1,5 @@
+component: api
+
 resources:
   limits:
     cpu: 200m

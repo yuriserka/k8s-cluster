@@ -1,3 +1,6 @@
+vaultShared:
+  - aws
+
 cmd:
   - /docker-entrypoint.sh
 
@@ -6,19 +9,14 @@ args:
   - manage.py
   - "start_example_events_consumer"
 
-port: 8005
-
 env:
-  DATABASE_HOST: postgresql
   KAFKA_BOOTSTRAP_SERVERS: kafka:9092
   KAFKA_CONSUMER_GROUP_ID: kafka-worker
   KAFKA_TOPICS_EXAMPLE_EVENTS: example-topic
-  AWS_ENDPOINT_URL: http://localstack:4566
-  AWS_ACCESS_KEY_ID: test
-  AWS_SECRET_ACCESS_KEY: test
-  AWS_DEFAULT_REGION: us-east-1
 
-# livenessProbeCmd:
-#   - ./worker_health_check.py
-# readinessProbeCmd:
-#   - ./worker_health_check.py
+livenessProbeCmd:
+  - python
+  - worker_health_check.py
+readinessProbeCmd:
+  - python
+  - worker_health_check.py

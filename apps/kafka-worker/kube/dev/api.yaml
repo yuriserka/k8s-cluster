@@ -1,3 +1,6 @@
+vaultShared:
+  - aws
+
 cmd:
   - /docker-entrypoint.sh
 
@@ -18,11 +21,7 @@ args:
 port: 8000
 
 env:
-  DATABASE_HOST: postgresql
-  AWS_ENDPOINT_URL: http://localstack:4566
-  AWS_ACCESS_KEY_ID: test
-  AWS_SECRET_ACCESS_KEY: test
-  AWS_DEFAULT_REGION: us-east-1
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
 
-# livenessProbePath: /actuator/health/liveness
-# readinessProbePath: /actuator/health/readiness
+livenessProbePath: /metrics
+readinessProbePath: /metrics

@@ -20,10 +20,12 @@ fullnameOverride: ""
 podAnnotations: {}
 podLabels: {}
 
+# Optional pod hardening — leave empty for dev; set per-app when experimenting.
 podSecurityContext: {}
 # fsGroup: 2000
 
 securityContext: {}
+# allowPrivilegeEscalation: false
 # capabilities:
 #   drop:
 #   - ALL
@@ -32,65 +34,46 @@ securityContext: {}
 # runAsUser: 1000
 
 service:
+  enabled: true
   type: ClusterIP
   port: 80
 
 env: {}
+secretEnv: {}
 
 ingress:
   enabled: false
   className: ""
   annotations: {}
-  # kubernetes.io/ingress.class: nginx
-  # kubernetes.io/tls-acme: "true"
   hosts:
     - host: chart-example.local
       paths:
         - path: /
           pathType: ImplementationSpecific
   tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
 
-resources: {}
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
 
-livenessProbe:
-  initialDelaySeconds: 15
-  periodSeconds: 5
-  timeoutSeconds: 60
-
-readinessProbe:
-  initialDelaySeconds: 15
-  periodSeconds: 5
-  timeoutSeconds: 60
-
-startupProbe:
-  failureThreshold: 30
-  periodSeconds: 10
+livenessProbe: null
+readinessProbe: null
+startupProbe: null
 
 autoscaling:
-  enabled: true
+  enabled: false
 
 terminationGracePeriodSeconds: 60
 
 lifecycle: {}
 
-# Additional volumes on the output Deployment definition.
 volumes: []
-# - name: foo
-#   secret:
-#     secretName: mysecret
-#     optional: false
-
-# Additional volumeMounts on the output Deployment definition.
 volumeMounts: []
-# - name: foo
-#   mountPath: "/etc/foo"
-#   readOnly: true
 
 nodeSelector: {}
-
 tolerations: []
-
 affinity: {}

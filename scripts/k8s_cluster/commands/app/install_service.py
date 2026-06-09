@@ -7,6 +7,37 @@ import yaml
 
 from k8s_cluster.commands.app.types import InstallAppRequest
 from k8s_cluster.paths import REPO_ROOT, resolve_path
+from k8s_cluster.utils.vault import get_secrets_for_app
+
+KUBE_ONLY_KEYS = {
+    "cmd",
+    "args",
+    "port",
+    "vaultShared",
+    "livenessProbePath",
+    "readinessProbePath",
+    "livenessProbeCmd",
+    "readinessProbeCmd",
+    "nameOverride",
+    "fullnameOverride",
+    "podLabels",
+    "service",
+}
+
+ALLOWED_COMPONENTS = frozenset({"api", "worker"})
+
+DEFAULT_PROBE_TIMING = {
+    "initialDelaySeconds": 15,
+    "periodSeconds": 5,
+    "timeoutSeconds": 60,
+}
+
+DEFAULT_STARTUP_PROBE_TIMING = {
+    "failureThreshold": 30,
+    "periodSeconds": 10,
+}
+
+PROBE_HTTP_HEADERS = [{"name": "Host", "value": "localhost"}]
 
 
 def get_values_template_for(namespace: str) -> dict:
@@ -18,25 +49,7 @@ def get_values_template_for(namespace: str) -> dict:
 def get_declared_values_for_app(env_file: str, namespace: str, path: str) -> dict:
     override_path = os.path.join(resolve_path(path), "kube", namespace, env_file)
     with open(override_path) as override_file:
-        return yaml.safe_load(override_file)
-
-
-def get_secrets_for_app(repository: str, namespace: str) -> dict:
-    all_secrets = {}
-    vault_root = os.path.join(REPO_ROOT, "resources", "vault", repository)
-    resource_directories = os.listdir(vault_root)
-    for resource in resource_directories:
-        env_dir = os.path.join(vault_root, resource, namespace)
-        if not os.path.isdir(env_dir):
-            continue
-
-        with open(os.path.join(env_dir, ".env")) as secrets_file:
-            lines = secrets_file.readlines()
-            for line in lines:
-                key, value = line.split("=")
-                all_secrets[f"{resource.upper()}_{key.upper()}"] = value.strip()
-
-    return all_secrets
+        return yaml.safe_load(override_file) or {}
 
 
 def get_resources_for(app_name: str, namespace: str) -> dict:
@@ -63,18 +76,27 @@ mapping_kube_to_helm_values = {
 }
 
 
+def _probe_section(values: dict, key: str) -> dict:
+    probe = values.get(key)
+    return probe if isinstance(probe, dict) else {}
+
+
 def handle_probes(values: dict, key: str | None = None, value=None):
     if key is None and value is None:
-        has_liveness_http = values.get("livenessProbe").get("httpGet") is not None
-        has_readines_http = values.get("readinessProbe").get("httpGet") is not None
-        has_liveness_exec = values.get("livenessProbe").get("exec") is not None
-        has_readiness_exec = values.get("readinessProbe").get("exec") is not None
-        has_startup_http = values.get("startupProbe").get("httpGet") is not None
-        has_startup_exec = values.get("startupProbe").get("exec") is not None
+        liveness_probe = _probe_section(values, "livenessProbe")
+        readiness_probe = _probe_section(values, "readinessProbe")
+        startup_probe = _probe_section(values, "startupProbe")
+
+        has_liveness_http = liveness_probe.get("httpGet") is not None
+        has_readiness_http = readiness_probe.get("httpGet") is not None
+        has_liveness_exec = liveness_probe.get("exec") is not None
+        has_readiness_exec = readiness_probe.get("exec") is not None
+        has_startup_http = startup_probe.get("httpGet") is not None
+        has_startup_exec = startup_probe.get("exec") is not None
 
         if not has_liveness_http and not has_liveness_exec:
             update_value(values, "livenessProbe", None)
-        if not has_readines_http and not has_readiness_exec:
+        if not has_readiness_http and not has_readiness_exec:
             update_value(values, "readinessProbe", None)
         if not has_startup_http and not has_startup_exec:
             update_value(values, "startupProbe", None)
@@ -84,14 +106,22 @@ def handle_probes(values: dict, key: str | None = None, value=None):
     real_key = "livenessProbe" if "liveness" in key else "readinessProbe"
     probe = None
     if "Cmd" in key:
-        probe = {**values.get(real_key, {}), "exec": {"command": value}}
+        probe = {**_probe_section(values, real_key), "exec": {"command": value}, **DEFAULT_PROBE_TIMING}
         update_value(values, real_key, probe)
     elif "Path" in key:
-        probe = {**values.get(real_key, {}), "httpGet": {"path": value, "port": "http"}}
+        probe = {
+            **_probe_section(values, real_key),
+            "httpGet": {
+                "path": value,
+                "port": "http",
+                "httpHeaders": PROBE_HTTP_HEADERS,
+            },
+            **DEFAULT_PROBE_TIMING,
+        }
         update_value(values, real_key, probe)
 
     if probe is not None and real_key == "livenessProbe":
-        update_value(values, "startupProbe", probe)
+        update_value(values, "startupProbe", {**probe, **DEFAULT_STARTUP_PROBE_TIMING})
 
 
 def resolve_pipeline_metadata(
@@ -104,38 +134,107 @@ def resolve_pipeline_metadata(
     )
 
 
+def resolve_helm_names(application: str, namespace: str) -> tuple[str, str]:
+    return application, f"{application}-{namespace}"
+
+
+def resolve_allowed_hosts(fullname: str) -> str:
+    service_host = f"{fullname}-service"
+    return f"localhost,127.0.0.1,{service_host},.svc.cluster.local"
+
+
+def apply_api_allowed_hosts(values_ref: dict, component: str, fullname: str) -> None:
+    if component != "api":
+        return
+    env = values_ref.setdefault("env", {})
+    if "ALLOWED_HOSTS" in env:
+        return
+    env["ALLOWED_HOSTS"] = resolve_allowed_hosts(fullname)
+
+
+def resolve_component_label(resources: dict) -> dict:
+    component = resources.get("component")
+    if component not in ALLOWED_COMPONENTS:
+        raise ValueError(f"component must be one of {sorted(ALLOWED_COMPONENTS)}, got {component!r}")
+    return {"app.kubernetes.io/component": component}
+
+
+def helm_resources_from_app_resources(resources: dict) -> dict:
+    return {key: value for key, value in resources.items() if key != "component"}
+
+
+def resolve_service_enabled(component: str, override_value: dict) -> bool:
+    has_port = "port" in override_value
+    if component == "api":
+        if not has_port:
+            raise ValueError("component 'api' requires port in kube params")
+        return True
+    if component == "worker":
+        return has_port
+    raise ValueError(f"component must be one of {sorted(ALLOWED_COMPONENTS)}, got {component!r}")
+
+
+def apply_service_enabled(values_ref: dict, component: str, override_value: dict) -> None:
+    service = values_ref.setdefault("service", {})
+    service["enabled"] = resolve_service_enabled(component, override_value)
+
+
+def merge_values_dict(values_ref: dict, overrides: dict) -> None:
+    for key, value in overrides.items():
+        if key not in values_ref:
+            values_ref[key] = value
+        elif isinstance(values_ref[key], dict) and isinstance(value, dict):
+            values_ref[key] = {**values_ref[key], **value}
+        else:
+            values_ref[key] = value
+
+
+def apply_kube_override(values_ref: dict, key: str, value) -> None:
+    if "Probe" in key:
+        handle_probes(values_ref, key, value)
+    if key in mapping_kube_to_helm_values:
+        update_value(values_ref, mapping_kube_to_helm_values[key], value)
+
+
+def apply_override_values(values_ref: dict, override_value: dict) -> None:
+    for key, value in override_value.items():
+        if key in KUBE_ONLY_KEYS or key == "env":
+            apply_kube_override(values_ref, key, value)
+            continue
+
+        apply_kube_override(values_ref, key, value)
+        if key in mapping_kube_to_helm_values or "Probe" in key:
+            continue
+
+        if key not in values_ref:
+            values_ref[key] = value
+        elif isinstance(values_ref[key], dict) and isinstance(value, dict):
+            values_ref[key] = {**values_ref[key], **value}
+        else:
+            values_ref[key] = value
+
+
 def build_install_values(request: InstallAppRequest, tag: str) -> dict:
     values = get_values_template_for(request.namespace)
     override_value = get_declared_values_for_app(request.params_file, request.namespace, request.app_path)
+    app_resources = get_resources_for(request.application, request.namespace)
 
-    override_value = {
-        **override_value,
-        "env": {
-            **get_secrets_for_app(request.repository, request.namespace),
-            **override_value.get("env", {}),
-        },
-    }
-
+    vault_shared = override_value.get("vaultShared", [])
     values_ref = dict(values)
+    name_override, fullname_override = resolve_helm_names(request.application, request.namespace)
+    values_ref["nameOverride"] = name_override
+    values_ref["fullnameOverride"] = fullname_override
+    values_ref["podLabels"] = resolve_component_label(app_resources)
     update_value(values_ref, "image.repository", f"{request.application}-{request.namespace}")
     update_value(values_ref, "image.tag", tag)
-    for key, value in override_value.items():
-        if "Probe" in key:
-            handle_probes(values_ref, key, value)
-        if key in mapping_kube_to_helm_values:
-            update_value(values_ref, mapping_kube_to_helm_values.get(key), value)
-        elif key not in values_ref:
-            values_ref[key] = value
-        else:
-            values_ref[key] = {**values_ref[key], **value}
+    values_ref["env"] = override_value.get("env", {})
+    values_ref["secretEnv"] = get_secrets_for_app(request.repository, request.namespace, vault_shared)
 
+    apply_override_values(values_ref, override_value)
+    apply_api_allowed_hosts(values_ref, app_resources["component"], fullname_override)
     handle_probes(values_ref)
-    resources = get_resources_for(request.application, request.namespace)
-    for key, value in resources.items():
-        if key not in values_ref:
-            values_ref[key] = value
-        else:
-            values_ref[key] = {**values_ref[key], **value}
+    apply_service_enabled(values_ref, app_resources["component"], override_value)
+    merge_values_dict(values_ref, helm_resources_from_app_resources(app_resources))
 
     resolved_pipeline_id, resolved_pipeline_started_at = resolve_pipeline_metadata(
         request.pipeline_id,

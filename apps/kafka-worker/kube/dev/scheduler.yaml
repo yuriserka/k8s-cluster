@@ -6,12 +6,9 @@ args:
   - manage.py
   - "start_scheduler"
 
-port: 8006
-
-env:
-  DATABASE_HOST: postgresql
-
-# livenessProbeCmd:
-#   - ./scheduler_health_check.py
-# readinessProbeCmd:
-#   - ./scheduler_health_check.py
+livenessProbeCmd:
+  - python
+  - worker_health_check.py
+readinessProbeCmd:
+  - python
+  - worker_health_check.py

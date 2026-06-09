@@ -1,4 +1,24 @@
 ---
+# Source: dev/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kafka-producer-scheduler-dev-secret
+  labels:
+    helm.sh/chart: dev-0.1.0
+    app.kubernetes.io/name: kafka-producer-scheduler
+    app.kubernetes.io/instance: kafka-producer-scheduler
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+stringData:
+  DATABASE_HOST: "postgresql"
+  DATABASE_NAME: "kafka-producer"
+  DATABASE_PASSWORD: "example"
+  DATABASE_PORT: "5432"
+  DATABASE_USER: "root"
+
+---
 # Source: dev/templates/configmap.yaml
 apiVersion: v1
 kind: ConfigMap
@@ -6,16 +26,11 @@ metadata:
   name: kafka-producer-scheduler-dev-configmap
   labels:
     helm.sh/chart: dev-0.1.0
-    app.kubernetes.io/name: dev
+    app.kubernetes.io/name: kafka-producer-scheduler
     app.kubernetes.io/instance: kafka-producer-scheduler
     app.kubernetes.io/version: "latest"
     app.kubernetes.io/managed-by: Helm
 data:
-  DATABASE_HOST: "postgresql"
-  DATABASE_NAME: "kafka-producer"
-  DATABASE_PASSWORD: "example"
-  DATABASE_PORT: "5432"
-  DATABASE_USER: "root"
   GEOCODING_URL: "https://geocoding-api.open-meteo.com"
   KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
   OPENMETEO_FORECAST_URL: "https://api.open-meteo.com/v1/forecast"
@@ -28,7 +43,7 @@ metadata:
   name: kafka-producer-scheduler-dev-service
   labels:
     helm.sh/chart: dev-0.1.0
-    app.kubernetes.io/name: dev
+    app.kubernetes.io/name: kafka-producer-scheduler
     app.kubernetes.io/instance: kafka-producer-scheduler
     app.kubernetes.io/version: "latest"
     app.kubernetes.io/managed-by: Helm
@@ -40,7 +55,7 @@ spec:
       protocol: TCP
       name: http
   selector:
-    app.kubernetes.io/name: dev
+    app.kubernetes.io/name: kafka-producer-scheduler
     app.kubernetes.io/instance: kafka-producer-scheduler
 
 ---
@@ -51,7 +66,7 @@ metadata:
   name: kafka-producer-scheduler-dev
   labels:
     helm.sh/chart: dev-0.1.0
-    app.kubernetes.io/name: dev
+    app.kubernetes.io/name: kafka-producer-scheduler
     app.kubernetes.io/instance: kafka-producer-scheduler
     app.kubernetes.io/version: "latest"
     app.kubernetes.io/managed-by: Helm
@@ -59,19 +74,20 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: dev
+      app.kubernetes.io/name: kafka-producer-scheduler
       app.kubernetes.io/instance: kafka-producer-scheduler
   template:
     metadata:
       annotations:
-        pipeline_deployed_at: "2026-06-07T20:20:40.148740+00:00"
-        pipeline_id: 6edf65e0-a43f-4653-ae84-bf38233f48df
+        pipeline_deployed_at: "2026-06-09T00:34:16.003920+00:00"
+        pipeline_id: 74a0bcb9-627e-4987-a937-b87dc2b78e60
       labels:
         helm.sh/chart: dev-0.1.0
-        app.kubernetes.io/name: dev
+        app.kubernetes.io/name: kafka-producer-scheduler
         app.kubernetes.io/instance: kafka-producer-scheduler
         app.kubernetes.io/version: "latest"
         app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: worker
     spec:
       terminationGracePeriodSeconds: 60
       containers:
@@ -85,8 +101,13 @@ spec:
           envFrom:
             - configMapRef:
                 name: kafka-producer-scheduler-dev-configmap
+            - secretRef:
+                name: kafka-producer-scheduler-dev-secret
           livenessProbe:
             httpGet:
+              httpHeaders:
+              - name: Host
+                value: localhost
               path: /actuator/health/liveness
               port: http
             initialDelaySeconds: 15
@@ -94,6 +115,9 @@ spec:
             timeoutSeconds: 60
           readinessProbe:
             httpGet:
+              httpHeaders:
+              - name: Host
+                value: localhost
               path: /actuator/health/readiness
               port: http
             initialDelaySeconds: 15
@@ -102,10 +126,13 @@ spec:
           startupProbe:
             failureThreshold: 30
             httpGet:
+              httpHeaders:
+              - name: Host
+                value: localhost
               path: /actuator/health/liveness
               port: http
             initialDelaySeconds: 15
-            periodSeconds: 5
+            periodSeconds: 10
             timeoutSeconds: 60
           resources:
             limits:

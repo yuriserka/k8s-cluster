@@ -260,6 +260,82 @@ python -m k8s_cluster app install --repository kafka-worker --application kafka-
 
 Each install writes pod annotations `pipeline_id` and `pipeline_deployed_at` so repeated deploys with the same image tag still roll out new pods. When run via `pipeline run`, all `install` steps in one pipeline run share the same `pipeline_id` and timestamp.
 
+### Inspecting injected env (ConfigMap + Secret)
+
+On `app install`, [`install_service.py`](k8s_cluster/commands/app/install_service.py) builds Helm values from three sources:
+
+| Source | Helm field | Kubernetes object | Examples |
+|--------|------------|-------------------|----------|
+| `apps/<repo>/kube/<namespace>/*.yaml` `env:` | `env` | ConfigMap `{app}-{ns}-configmap` | `KAFKA_BOOTSTRAP_SERVERS`, platform-injected `ALLOWED_HOSTS` |
+| `resources/vault/<repo>/…` + optional `vaultShared` | `secretEnv` | Secret `{app}-{ns}-secret` | `DATABASE_*`, `AWS_*` |
+| Rendered snapshot | — | `apps/<repo>/<application>-<namespace>.yaml` | full manifest Helm applied |
+
+Vault files live under `resources/vault/` (see [database create](#cluster-database-database-create) for paths). Infra-only keys (e.g. `LOCALSTACK_AUTH_TOKEN`) stay in the LocalStack container and are **not** mounted into app pods.
+
+Replace `kafka-worker-api` / `dev` with your application and namespace.
+
+**List resource names**
+
+```bash
+minikube kubectl -- get configmap,secret -n dev -l app.kubernetes.io/name=kafka-worker-api
+```
+
+**ConfigMap (non-secret env)**
+
+```bash
+# keys and values (plain text)
+minikube kubectl -- get configmap kafka-worker-api-dev-configmap -n dev -o yaml
+
+# single key
+minikube kubectl -- get configmap kafka-worker-api-dev-configmap -n dev \
+  -o jsonpath='{.data.KAFKA_BOOTSTRAP_SERVERS}{"\n"}'
+```
+
+**Secret (credentials)**
+
+```bash
+# key names only (values are base64-encoded)
+minikube kubectl -- get secret kafka-worker-api-dev-secret -n dev -o jsonpath='{range $k,$v := .data}{printf "%s\n" $k}{end}'
+
+# decode one value (dev debugging only — do not paste output in tickets)
+minikube kubectl -- get secret kafka-worker-api-dev-secret -n dev \
+  -o jsonpath='{.data.DATABASE_PASSWORD}' | base64 -d; echo
+```
+
+**What the running pod actually sees**
+
+Pods load both via `envFrom` (see `envs/dev/templates/deployment.yaml`). To list the merged environment inside the container:
+
+```bash
+POD=$(minikube kubectl -- get pods -n dev -l app.kubernetes.io/name=kafka-worker-api \
+  -o jsonpath='{.items[0].metadata.name}')
+
+# all env vars (secrets + configmap + image defaults)
+minikube kubectl -- exec -n dev "$POD" -- env | sort
+
+# filter to injected keys
+minikube kubectl -- exec -n dev "$POD" -- env | sort | grep -E '^(DATABASE_|AWS_|KAFKA_|ALLOWED_HOSTS)'
+```
+
+**Which objects are wired in**
+
+```bash
+minikube kubectl -- describe pod -n dev "$POD" | sed -n '/Environment:/,/Mounts:/p'
+```
+
+Shows `ConfigMap` / `Secret` refs and any inline env vars.
+
+**Compare with local vault before deploy**
+
+```bash
+# what install would put in secretEnv (from repo root)
+cd scripts && .venv/bin/python -c "
+from k8s_cluster.utils.vault import get_secrets_for_app
+import json
+print(json.dumps(get_secrets_for_app('kafka-worker', 'dev', ['aws']), indent=2))
+"
+```
+
 ### Pipeline log output
 
 `pipeline run` prints a header/footer around each step (`STEP i/N`, kind, key fields, duration, exit code) so output from one step is visually separated from the next. Optional `services:` blocks get a similar `SERVICE i/N` header.

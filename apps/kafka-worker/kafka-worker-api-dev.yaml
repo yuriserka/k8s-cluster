@@ -1,16 +1,17 @@
 ---
-# Source: dev/templates/configmap.yaml
+# Source: dev/templates/secret.yaml
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
-  name: kafka-worker-api-dev-configmap
+  name: kafka-worker-api-dev-secret
   labels:
     helm.sh/chart: dev-0.1.0
-    app.kubernetes.io/name: dev
+    app.kubernetes.io/name: kafka-worker-api
     app.kubernetes.io/instance: kafka-worker-api
     app.kubernetes.io/version: "latest"
     app.kubernetes.io/managed-by: Helm
-data:
+type: Opaque
+stringData:
   AWS_ACCESS_KEY_ID: "test"
   AWS_DEFAULT_REGION: "us-east-1"
   AWS_ENDPOINT_URL: "http://localstack:4566"
@@ -20,6 +21,22 @@ data:
   DATABASE_PASSWORD: "example"
   DATABASE_PORT: "5432"
   DATABASE_USER: "root"
+
+---
+# Source: dev/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-worker-api-dev-configmap
+  labels:
+    helm.sh/chart: dev-0.1.0
+    app.kubernetes.io/name: kafka-worker-api
+    app.kubernetes.io/instance: kafka-worker-api
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+data:
+  ALLOWED_HOSTS: "localhost,127.0.0.1,kafka-worker-api-dev-service,.svc.cluster.local"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
 ---
 # Source: dev/templates/service.yaml
 apiVersion: v1
@@ -28,7 +45,7 @@ metadata:
   name: kafka-worker-api-dev-service
   labels:
     helm.sh/chart: dev-0.1.0
-    app.kubernetes.io/name: dev
+    app.kubernetes.io/name: kafka-worker-api
     app.kubernetes.io/instance: kafka-worker-api
     app.kubernetes.io/version: "latest"
     app.kubernetes.io/managed-by: Helm
@@ -40,7 +57,7 @@ spec:
       protocol: TCP
       name: http
   selector:
-    app.kubernetes.io/name: dev
+    app.kubernetes.io/name: kafka-worker-api
     app.kubernetes.io/instance: kafka-worker-api
 
 ---
@@ -51,7 +68,7 @@ metadata:
   name: kafka-worker-api-dev
   labels:
     helm.sh/chart: dev-0.1.0
-    app.kubernetes.io/name: dev
+    app.kubernetes.io/name: kafka-worker-api
     app.kubernetes.io/instance: kafka-worker-api
     app.kubernetes.io/version: "latest"
     app.kubernetes.io/managed-by: Helm
@@ -59,19 +76,20 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: dev
+      app.kubernetes.io/name: kafka-worker-api
       app.kubernetes.io/instance: kafka-worker-api
   template:
     metadata:
       annotations:
-        pipeline_deployed_at: "2026-06-07T20:16:01.496699+00:00"
-        pipeline_id: 87dbf895-5c16-414a-86d4-d95994575ff9
+        pipeline_deployed_at: "2026-06-09T00:27:52.080729+00:00"
+        pipeline_id: fdee8e62-ae86-448a-98d7-0d3e448a2c73
       labels:
         helm.sh/chart: dev-0.1.0
-        app.kubernetes.io/name: dev
+        app.kubernetes.io/name: kafka-worker-api
         app.kubernetes.io/instance: kafka-worker-api
         app.kubernetes.io/version: "latest"
         app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: api
     spec:
       terminationGracePeriodSeconds: 60
       containers:
@@ -100,12 +118,39 @@ spec:
           envFrom:
             - configMapRef:
                 name: kafka-worker-api-dev-configmap
+            - secretRef:
+                name: kafka-worker-api-dev-secret
           livenessProbe:
-            null
+            httpGet:
+              httpHeaders:
+              - name: Host
+                value: localhost
+              path: /metrics
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 60
           readinessProbe:
-            null
+            httpGet:
+              httpHeaders:
+              - name: Host
+                value: localhost
+              path: /metrics
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 60
           startupProbe:
-            null
+            failureThreshold: 30
+            httpGet:
+              httpHeaders:
+              - name: Host
+                value: localhost
+              path: /metrics
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 60
           resources:
             limits:
               cpu: 200m
